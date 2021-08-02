@@ -2,19 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import case as case
 import Toolbox as tb
-import pandas as pd
-import openpyxl as pyx
 
 # This script generates a range of potential outcomes for a natural gas
 # rate add or workover project, as defined by the user. It then aggregates
 # those outcomes into a "mean" case, and integrates a chance of success
 # to deliver a "risked mean" output to aid in decision making.
-
-case_data = pd.read_excel('Project_Economics_Controller.xlsx', 
-    sheet_name = 'Data_DO_NOT_EDIT',
-    index_col = 0)
-
-print(case_data)
 
 months = 600
 dt = np.linspace(0,months,months+1) * 30.4375

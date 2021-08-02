@@ -3,8 +3,10 @@ import matplotlib.pyplot as plt
 import case as case
 import Toolbox as tb
 import pandas as pd
+import openpyxl as pyx
+import os
 
-pars = pd.read_excel('Project_Economics_Controller.xlsm', 
+pars = pd.read_excel(os.path.dirname(__file__) + '\\Project_Economics_Controller.xlsm', 
     sheet_name = 'Data_DO_NOT_EDIT',
     header = 0,
     index_col = 0)
