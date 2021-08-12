@@ -10,7 +10,7 @@ import Toolbox as tb
 
 months = 600
 dt = np.linspace(0,months,months+1) * 30.4375
-incremental = True                                             # Boolean - should this be an incremental run?
+incremental = True                                              # Boolean - should this be an incremental run?
 
 # Ownership
 WI = 1                                                          # Working interest          (Fraction)
@@ -19,14 +19,14 @@ NRI = 0.86                                                      # Net revenue in
 # Shrinks & Yields
 shrink = 0.83                                                   # Gas shrink factor         (mcf/mcf)
 ngl_yield = 63                                                  # NGL yield                 (bbl/mmcf)
-oil_yield = 10                                                   # Condensate yield          (bbl/mmcf)
+oil_yield = 10                                                  # Condensate yield          (bbl/mmcf)
 
 # Basic LOS Parameters
 fixed_cost = 0                                                  # Fixed field cost          (USD/month)
 var_gas_cost = 0.2176 + 0.4154                                  # Variable field cost       (USD/mcfe/month)
-var_oil_cost = var_gas_cost * 6                                 # Variable field cost        (USD/boe/month)
+var_oil_cost = var_gas_cost * 6                                 # Variable field cost       (USD/boe/month)
 overhead = 0                                                    # Overhead expense          (USD/month)
-adval_rate = 0.0157                                                 # Ad Valorem Tax Rate       (%)
+adval_rate = 0.0157                                             # Ad Valorem Tax Rate       (%)
 sev_rate = 0.0623                                               # Severance Tax Rate        (%)
 
 # CAPEX Scheduling
