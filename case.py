@@ -72,6 +72,7 @@ class case:
             ##  6 - 2-Segment Exponential
             ##  Intended for use on Fruitland Coal wells with a dewatering period. "Peak" is the number of months to peak rate
             ##  and "Dterm" is simply the decline rate after peak rate is reached.
+            peak = int(peak)
             Di = -np.log(1-Di_sec)                                                          # Initial decline rate      (Nominal /yr)
             Dterm = -np.log(1-Dterm_sec)
             qpeak = qi * np.exp(-Di*self.dt[peak] * (1/365.25))

@@ -37,13 +37,14 @@ class MainWindow(QMainWindow):
         mainLayout = QGridLayout()
         topLeftLayout = QVBoxLayout()
         topLeftTopLayout = QHBoxLayout()
-
+        
         runButton = QPushButton("Run Economics")
         runButton.clicked.connect(self.run_economics)
 
         self.declinePlot = pg.PlotWidget()
         self.declinePlot.setLogMode(x = False, y = True)
         self.declinePlot.addLegend(offset = [-10, 10])
+        self.plottedAlready = False
 
         self.paramRowHeaders = [
             'CAPEX',
@@ -252,14 +253,26 @@ class MainWindow(QMainWindow):
         print(params)
         print(runSettingsFrame)
         print(runSettingsFrame.settings.months)
-
+        
+        
         pmean, p10, p50, p90, pfail, pbase = econ.run_econs(params, runSettingsFrame)
-        self.declinePlot.plot(pmean.t[pmean.gross_gas_rate > 0], pmean.gross_gas_rate[pmean.gross_gas_rate > 0], name = 'pmean', pen = self.redpen)
-        self.declinePlot.plot(p10.t[p10.gross_gas_rate > 0], p10.gross_gas_rate[p10.gross_gas_rate > 0], name = 'p10', pen = self.greenpen)
-        self.declinePlot.plot(p50.t[p50.gross_gas_rate > 0], p50.gross_gas_rate[p50.gross_gas_rate > 0], name = 'p50', pen = self.bluepen)
-        self.declinePlot.plot(p90.t[p90.gross_gas_rate > 0], p90.gross_gas_rate[p90.gross_gas_rate > 0], name = 'p90', pen = self.yellowpen)
-        self.declinePlot.plot(pbase.t[pbase.gross_gas_rate > 0], pbase.gross_gas_rate[pbase.gross_gas_rate > 0], name = 'pbase', pen = self.purplepen)
-        self.declinePlot.plot(pfail.t[pfail.gross_gas_rate > 0], pfail.gross_gas_rate[pfail.gross_gas_rate > 0], name = 'pfail', pen = self.orangepen)
+        if self.plottedAlready:
+            self.declinePlot.clear()
+            self.declinePlot.plot(pmean.t[pmean.gross_gas_rate > 0], pmean.gross_gas_rate[pmean.gross_gas_rate > 0], name = 'pmean', pen = self.redpen)
+            self.declinePlot.plot(p10.t[p10.gross_gas_rate > 0], p10.gross_gas_rate[p10.gross_gas_rate > 0], name = 'p10', pen = self.greenpen)
+            self.declinePlot.plot(p50.t[p50.gross_gas_rate > 0], p50.gross_gas_rate[p50.gross_gas_rate > 0], name = 'p50', pen = self.bluepen)
+            self.declinePlot.plot(p90.t[p90.gross_gas_rate > 0], p90.gross_gas_rate[p90.gross_gas_rate > 0], name = 'p90', pen = self.yellowpen)
+            self.declinePlot.plot(pbase.t[pbase.gross_gas_rate > 0], pbase.gross_gas_rate[pbase.gross_gas_rate > 0], name = 'pbase', pen = self.purplepen)
+            self.declinePlot.plot(pfail.t[pfail.gross_gas_rate > 0], pfail.gross_gas_rate[pfail.gross_gas_rate > 0], name = 'pfail', pen = self.orangepen)
+        else:
+            self.declinePlot.plot(pmean.t[pmean.gross_gas_rate > 0], pmean.gross_gas_rate[pmean.gross_gas_rate > 0], name = 'pmean', pen = self.redpen)
+            self.declinePlot.plot(p10.t[p10.gross_gas_rate > 0], p10.gross_gas_rate[p10.gross_gas_rate > 0], name = 'p10', pen = self.greenpen)
+            self.declinePlot.plot(p50.t[p50.gross_gas_rate > 0], p50.gross_gas_rate[p50.gross_gas_rate > 0], name = 'p50', pen = self.bluepen)
+            self.declinePlot.plot(p90.t[p90.gross_gas_rate > 0], p90.gross_gas_rate[p90.gross_gas_rate > 0], name = 'p90', pen = self.yellowpen)
+            self.declinePlot.plot(pbase.t[pbase.gross_gas_rate > 0], pbase.gross_gas_rate[pbase.gross_gas_rate > 0], name = 'pbase', pen = self.purplepen)
+            self.declinePlot.plot(pfail.t[pfail.gross_gas_rate > 0], pfail.gross_gas_rate[pfail.gross_gas_rate > 0], name = 'pfail', pen = self.orangepen)
+            self.plottedAlready = True
+        
 
 
 
