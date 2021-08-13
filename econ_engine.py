@@ -3,7 +3,7 @@ import case as case
 
 def run_econs(pars, runSettingsFrame):
     dt = np.linspace(0, int(runSettingsFrame.settings.months), int(runSettingsFrame.settings.months) + 1) * 30.4375
-
+    
     # Pricing
     pricing_type = "flat"
     gas_price = 2.50
@@ -13,12 +13,12 @@ def run_econs(pars, runSettingsFrame):
     ngl_diff = 0.39
 
     # CAPEX Scheduling
-    capex_months = [0]                                              # CAPEX timing              (Months)
-    capex_amts = [200000]                                           # CAPEX amount              (USD)
+    capex_months = [0]                                                              # CAPEX timing              (Months)
+    capex_amts = [pars['p50']['capex']]                                             # CAPEX amount              (USD)
 
     # Failure CAPEX Scheduling
-    fail_capex_months = [0]                                         # CAPEX timing              (Months)
-    fail_capex_amts = [200000]                                      # CAPEX amount              (USD)
+    fail_capex_months = [0]                                                         # CAPEX timing              (Months)
+    fail_capex_amts = [pars['p50']['capex']]                                        # CAPEX amount              (USD)
 
     if runSettingsFrame.settings.incremental == 'Incremental':
         pbase = case.case(dt, runSettingsFrame.settings.WI, runSettingsFrame.settings.NRI)

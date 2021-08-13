@@ -303,6 +303,7 @@ class MainWindow(QMainWindow):
         for i, k in enumerate(resultsTableFrame.index):
             for j, l in enumerate(resultsTableFrame.columns):
                 self.econResultsTable.setItem(i, j, QTableWidgetItem(resultsTableFrame[l][k]))
+        print(params['p50']['capex'])
 
 
 app = QApplication(sys.argv)

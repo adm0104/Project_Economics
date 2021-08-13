@@ -31,6 +31,7 @@ capex_amts = [215000]                                           # CAPEX amount  
 # Failure CAPEX Scheduling
 fail_capex_months = [0]                                         # CAPEX timing              (Months)
 fail_capex_amts = [215000]                                      # CAPEX amount              (USD)
+print(capex_amts)
 
 if pars.p50.incremental:
     pbase = case.case(dt, pars.pbase.WI, pars.pbase.NRI)
