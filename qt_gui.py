@@ -81,6 +81,7 @@ class MainWindow(QMainWindow):
             'Severance Tax Rate'
         ]
 
+
         # Generate input table
         self.inputTable = QTableWidget(len(self.paramRowHeaders), len(self.caseColHeaders))
         self.inputTable.setVerticalHeaderLabels(self.paramRowHeaders)
@@ -116,19 +117,45 @@ class MainWindow(QMainWindow):
             self.settingsInputTable.setCellWidget(self.runSettings.index(j), 0, self.dropDownSettingsInputs[i])
 
 
-        self.econResultsTable = QTableWidget(5, 5)
+        self.resultsHeaders = [
+            'p10',
+            'p50',
+            'p90',
+            'pfail',
+            'pbase',
+            'pmean'
+        ]
+        self.resultsMetrics = [
+            'Incremental EUR (Bcf)',
+            'Gross CAPEX ($M)',
+            'Net CAPEX ($M)',
+            'Net Res. (Mboe)',
+            'Net Res. (MMcfe)',
+            'Net IP30 (Boe/d)',
+            'Net IP30 (Mcfe/d)',
+            'PV-10 ($M)',
+            'Payout (Months)',
+            'PVR-10'
+        ]
+        # Generate results table
+        self.econResultsTable = QTableWidget(len(self.resultsMetrics), len(self.resultsHeaders))
+        self.econResultsTable.setVerticalHeaderLabels(self.resultsMetrics)
+        self.econResultsTable.setHorizontalHeaderLabels(self.resultsHeaders)
+
         self.declineCalcTable = QTableWidget(5, 5)
 
+        # Set up layout
         mainLayout.addWidget(self.declinePlot, 0, 1)
 
-        topLeftTopLayout.addWidget(self.settingsInputTable)
+        topLeftLayout.addWidget(self.settingsInputTable)
+        topLeftLayout.addWidget(runButton)
+        topLeftTopLayout.addLayout(topLeftLayout)
+
         topLeftTopLayout.addWidget(self.inputTable)
         topLeftTopLayout.setStretch(0, 2)
         topLeftTopLayout.setStretch(1, 5)
 
-        topLeftLayout.addLayout(topLeftTopLayout)
-        topLeftLayout.addWidget(runButton)
-        mainLayout.addLayout(topLeftLayout, 0, 0)
+        mainLayout.addLayout(topLeftTopLayout, 0, 0)
 
         mainLayout.addWidget(self.econResultsTable, 1, 0)
         
@@ -249,10 +276,6 @@ class MainWindow(QMainWindow):
             'adval_rate',
             'sev_rate'
         ]))
-
-        print(params)
-        print(runSettingsFrame)
-        print(runSettingsFrame.settings.months)
         
         
         pmean, p10, p50, p90, pfail, pbase = econ.run_econs(params, runSettingsFrame)
@@ -272,8 +295,14 @@ class MainWindow(QMainWindow):
             self.declinePlot.plot(pbase.t[pbase.gross_gas_rate > 0], pbase.gross_gas_rate[pbase.gross_gas_rate > 0], name = 'pbase', pen = self.purplepen)
             self.declinePlot.plot(pfail.t[pfail.gross_gas_rate > 0], pfail.gross_gas_rate[pfail.gross_gas_rate > 0], name = 'pfail', pen = self.orangepen)
             self.plottedAlready = True
-        
 
+        resultsTableFrame = pd.DataFrame([p10.getMetricsDict(), p50.getMetricsDict(), p90.getMetricsDict(),
+            pfail.getMetricsDict(), pbase.getMetricsDict(), pmean.getMetricsDict()], index = ['p10', 'p50', 'p90', 'pfail', 'pbase', 'pmean'])
+        resultsTableFrame = resultsTableFrame.T.fillna('NA')
+
+        for i, k in enumerate(resultsTableFrame.index):
+            for j, l in enumerate(resultsTableFrame.columns):
+                self.econResultsTable.setItem(i, j, QTableWidgetItem(resultsTableFrame[l][k]))
 
 
 app = QApplication(sys.argv)

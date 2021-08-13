@@ -20,7 +20,7 @@ def run_econs(pars, runSettingsFrame):
     fail_capex_months = [0]                                         # CAPEX timing              (Months)
     fail_capex_amts = [200000]                                      # CAPEX amount              (USD)
 
-    if runSettingsFrame.settings.incremental:
+    if runSettingsFrame.settings.incremental == 'Incremental':
         pbase = case.case(dt, runSettingsFrame.settings.WI, runSettingsFrame.settings.NRI)
         pbase.decline(pars.pbase.Decline_type, pars.pbase.qi, pars.pbase.Di_sec,
         pars.pbase.Dterm_sec, pars.pbase.b, pars.pbase.peak)
@@ -92,7 +92,7 @@ def run_econs(pars, runSettingsFrame):
     print("Pfail Complete")
 
     pmean = case.case(dt, runSettingsFrame.settings.WI, runSettingsFrame.settings.NRI)
-    if runSettingsFrame.settings.incremental:
+    if runSettingsFrame.settings.incremental == 'Incremental':
         pmean.swansons_mean_inc(p10, p50, p90, pfail, pbase, runSettingsFrame.settings.p_s)
         pmean.cash_flow()
         pmean.life(runSettingsFrame.settings.LOSS)
@@ -109,7 +109,7 @@ def run_econs(pars, runSettingsFrame):
         pmean.metrics()
         print("Pmean Complete")
 
-    if runSettingsFrame.settings.incremental:
+    if runSettingsFrame.settings.incremental == 'Incremental':
         return pmean, p10, p50, p90, pfail, pbase
     else:
         return pmean, p10, p50, p90, pfail, None

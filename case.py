@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 class case:
     def __init__(self,dt,WI,NRI):
@@ -385,6 +386,35 @@ class case:
         else:
             self.PVR0 = self.PV0 / self.NET_CAPEX + 1
             self.PVR10 = np.sum(self.ncf_pv10) / self.NET_CAPEX_DISC + 1
+    def getMetricsDict(self):
+        #self.metrics()
+        """
+        self.metricsDict = {
+            'Incremental EUR (Bcf)': [self.GROSS_GAS],
+            'Gross CAPEX ($M)': [self.GROSS_CAPEX],
+            'Net CAPEX ($M)': [self.NET_CAPEX],
+            'Net Res. (Mboe)': [self.NET_MBOE],
+            'Net Res. (MMcfe)': [self.NET_MMCFE],
+            'Net IP30 (Boe/d)': [self.NET_BOED],
+            'Net IP30 (Mcfe/d)': [self.NET_MCFED],
+            'PV-10 ($M)': [self.PV10],
+            'Payout (Months)': [self.payout],
+            'PVR-10': [self.PVR10]
+        }
+        """
+        self.metricsDict = {
+            'Incremental EUR (Bcf)': str(round(self.GROSS_GAS, 2)),
+            'Gross CAPEX ($M)': str(round(self.GROSS_CAPEX, 2)),
+            'Net CAPEX ($M)': str(round(self.NET_CAPEX)),
+            'Net Res. (Mboe)': str(round(self.NET_MBOE)),
+            'Net Res. (MMcfe)': str(round(self.NET_MMCFE)),
+            'Net IP30 (Boe/d)': str(round(self.NET_BOED)),
+            'Net IP30 (Mcfe/d)': str(round(self.NET_MCFED)),
+            'PV-10 ($M)': str(round(self.PV10)),
+            'Payout (Months)': str(self.payout),
+            'PVR-10': str(round(self.PVR10, 1))
+        }
+        return self.metricsDict
     def make_run_table(self):
         self.col_titles = "Time (Days),Gross Gas (Mcf),Gross Oil (Bbl),Gross NGL (Bbl),Net Gas (Mcf),Net Oil (Mcf),Net NGL (Mcf),Base Gas Price ($/Mcf),Base Oil Price ($/Bbl),Realized Gas Price ($/Mcf),Realized Oil Price ($/Mcf,Realized NGL Price ($/Bbl),Gas Revenue ($),Oil Revenue ($),NGL Revenue ($),Total Net Revenue ($),Severance Tax ($),Ad Valorem Tax ($),Total Expenses ($),Net CAPEX ($),Net PV0 ($),Cum PV0 ($),Net PV10 ($),Cum PV10 ($)"
         table = np.column_stack((self.t,self.gross_gas,self.gross_oil,self.gross_ngl,self.net_gas,self.net_oil,self.net_ngl,
