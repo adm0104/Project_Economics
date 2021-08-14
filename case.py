@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 class case:
     def __init__(self,dt,WI,NRI):
@@ -12,13 +13,13 @@ class case:
         num_center = num_entry - 1
         self.q = np.zeros(num_entry)
         self.Qp = np.zeros(num_center)
-        if Decline_type == 1:
+        if Decline_type == 1 or Decline_type == 'Exponential':
             ##  1 - Exponential Decline
             Di = -np.log(1-Di_sec)                                                          # Initial decline rate      (Nominal /yr)
             self.q = qi * np.exp(-Di*self.dt * (1/365.25))                                  # Monthly starting rate     (Mcf/d)
             for i in range(num_center):
                 self.Qp[i] = (self.q[i]-self.q[i+1]) / Di * 365.25                          # Monthly cumulative        (Mcf)
-        elif Decline_type == 2:
+        elif Decline_type == 2 or Decline_type == 'Hyperbolic':
             ##  2 - Hyperbolic Decline
             if b > 1: print("*** WARNING - B-FACTOR OVER 1 YIELDS NON-CONVERGENT SOLUTION - CONSIDER MODIFIED HYPERBOLIC ***")
             Di = ((1-Di_sec)**(-b)-1)/b                                                     # Initial decline rate      (Nominal /yr)
@@ -38,7 +39,7 @@ class case:
             for i in range(num_center):
                 Dtemp = Di / (1+Di*self.dt[i]/365.25)
                 self.Qp[i] = (self.q[i]/Dtemp)*np.log(self.q[i]/self.q[i+1]) * 365.25       # Monthly cumulative        (Mcf)
-        elif Decline_type == 4:
+        elif Decline_type == 4 or Decline_type == 'Modified Arps':
             ## 4 - Modified Hyperbolic Decline
             Di = ((1-Di_sec)**(-b)-1) / b                                                   # Initial decline rate      (Nominal /yr)
             Dterm = -np.log(1-Dterm_sec)                                                    # Terminal decline rate     (Nominal /yr)
@@ -66,12 +67,13 @@ class case:
                 self.Qp[sw_pre_ind] = ((self.q[i+1]**b)*(self.q[i+1]**(1-b)-q_sw**(1-b)) / ((1-b)*Dtemp) + (q_sw-self.q[i+2])/Dterm) * 365.25
                 for i in range(sw_pre_ind+1,num_center):
                     self.Qp[i] = (self.q[i]-self.q[i+1])/Dterm * 365.25
-        elif Decline_type == 5:
+        elif Decline_type == 5 or Decline_type == 'No Rate':
             pass
-        elif Decline_type == 6:
+        elif Decline_type == 6 or Decline_type == 'CBM Dewatering/Incline':
             ##  6 - 2-Segment Exponential
             ##  Intended for use on Fruitland Coal wells with a dewatering period. "Peak" is the number of months to peak rate
             ##  and "Dterm" is simply the decline rate after peak rate is reached.
+            peak = int(peak)
             Di = -np.log(1-Di_sec)                                                          # Initial decline rate      (Nominal /yr)
             Dterm = -np.log(1-Dterm_sec)
             qpeak = qi * np.exp(-Di*self.dt[peak] * (1/365.25))
@@ -294,6 +296,7 @@ class case:
             self.payout = int(self.payout)
     def life(self,LOSS):
         self.LOSS = LOSS
+        non_ind = 0
         if LOSS == "NO":
             # Truncate when cash flow is negative, ignoring overhead
             life_ind = 0
@@ -302,31 +305,31 @@ class case:
                 life_ind+=1
                 detect = self.rev_total[life_ind] - self.fixed_cost[life_ind] - self.var_cost[life_ind] - self.sev_tax[life_ind] - self.adval_tax[life_ind]
             for i in range(life_ind,self.periods):
-                self.gross_gas[i] = 0
-                self.gross_gas_rate[i] = 0
-                self.gross_oil[i] = 0
-                self.gross_ngl[i] = 0
-                self.gross_boe[i] = 0
-                self.gross_mcfe[i] = 0
-                self.net_gas[i] = 0
-                self.net_oil[i] = 0
-                self.net_ngl[i] = 0
-                self.net_boe[i] = 0
-                self.net_mcfe[i] = 0
-                self.rev_gas[i] = 0
-                self.rev_oil[i] = 0
-                self.rev_ngl[i] = 0
-                self.rev_total[i] = 0
-                self.fixed_cost[i] = 0
-                self.var_cost[i] = 0
-                self.overhead[i] = 0
-                self.sev_tax[i] = 0
-                self.adval_tax[i] = 0
-                self.exp_total[i] = 0
-                self.ncf_pv0[i] = 0
-                self.ccf_pv0[i] = 0
-                self.ncf_pv10[i] = 0
-                self.ccf_pv10[i] = 0
+                self.gross_gas[i] = non_ind
+                self.gross_gas_rate[i] = non_ind
+                self.gross_oil[i] = non_ind
+                self.gross_ngl[i] = non_ind
+                self.gross_boe[i] = non_ind
+                self.gross_mcfe[i] = non_ind
+                self.net_gas[i] = non_ind
+                self.net_oil[i] = non_ind
+                self.net_ngl[i] = non_ind
+                self.net_boe[i] = non_ind
+                self.net_mcfe[i] = non_ind
+                self.rev_gas[i] = non_ind
+                self.rev_oil[i] = non_ind
+                self.rev_ngl[i] = non_ind
+                self.rev_total[i] = non_ind
+                self.fixed_cost[i] = non_ind
+                self.var_cost[i] = non_ind
+                self.overhead[i] = non_ind
+                self.sev_tax[i] = non_ind
+                self.adval_tax[i] = non_ind
+                self.exp_total[i] = non_ind
+                self.ncf_pv0[i] = non_ind
+                self.ccf_pv0[i] = non_ind
+                self.ncf_pv10[i] = non_ind
+                self.ccf_pv10[i] = non_ind
             self.EOL = self.t[life_ind]
         elif LOSS == "BFIT":
             # Truncate when cash flow is negative, including all expenses
@@ -336,31 +339,31 @@ class case:
                 life_ind+=1
                 detect = self.rev_total[life_ind] - self.exp_total[life_ind]
             for i in range(life_ind,self.periods):
-                self.gross_gas[i] = 0
-                self.gross_gas_rate[i] = 0
-                self.gross_oil[i] = 0
-                self.gross_ngl[i] = 0
-                self.gross_boe[i] = 0
-                self.gross_mcfe[i] = 0
-                self.net_gas[i] = 0
-                self.net_oil[i] = 0
-                self.net_ngl[i] = 0
-                self.net_boe[i] = 0
-                self.net_mcfe[i] = 0
-                self.rev_gas[i] = 0
-                self.rev_oil[i] = 0
-                self.rev_ngl[i] = 0
-                self.rev_total[i] = 0
-                self.fixed_cost[i] = 0
-                self.var_cost[i] = 0
-                self.overhead[i] = 0
-                self.sev_tax[i] = 0
-                self.adval_tax[i] = 0
-                self.exp_total[i] = 0
-                self.ncf_pv0[i] = 0
-                self.ccf_pv0[i] = 0
-                self.ncf_pv10[i] = 0
-                self.ccf_pv10[i] = 0
+                self.gross_gas[i] = non_ind
+                self.gross_gas_rate[i] = non_ind
+                self.gross_oil[i] = non_ind
+                self.gross_ngl[i] = non_ind
+                self.gross_boe[i] = non_ind
+                self.gross_mcfe[i] = non_ind
+                self.net_gas[i] = non_ind
+                self.net_oil[i] = non_ind
+                self.net_ngl[i] = non_ind
+                self.net_boe[i] = non_ind
+                self.net_mcfe[i] = non_ind
+                self.rev_gas[i] = non_ind
+                self.rev_oil[i] = non_ind
+                self.rev_ngl[i] = non_ind
+                self.rev_total[i] = non_ind
+                self.fixed_cost[i] = non_ind
+                self.var_cost[i] = non_ind
+                self.overhead[i] = non_ind
+                self.sev_tax[i] = non_ind
+                self.adval_tax[i] = non_ind
+                self.exp_total[i] = non_ind
+                self.ncf_pv0[i] = non_ind
+                self.ccf_pv0[i] = non_ind
+                self.ncf_pv10[i] = non_ind
+                self.ccf_pv10[i] = non_ind
             self.EOL = self.t[life_ind]
         elif LOSS == "OK":
             # Allow loss - make no modifications to existing calculations
@@ -383,6 +386,35 @@ class case:
         else:
             self.PVR0 = self.PV0 / self.NET_CAPEX + 1
             self.PVR10 = np.sum(self.ncf_pv10) / self.NET_CAPEX_DISC + 1
+    def getMetricsDict(self):
+        #self.metrics()
+        """
+        self.metricsDict = {
+            'Incremental EUR (Bcf)': [self.GROSS_GAS],
+            'Gross CAPEX ($M)': [self.GROSS_CAPEX],
+            'Net CAPEX ($M)': [self.NET_CAPEX],
+            'Net Res. (Mboe)': [self.NET_MBOE],
+            'Net Res. (MMcfe)': [self.NET_MMCFE],
+            'Net IP30 (Boe/d)': [self.NET_BOED],
+            'Net IP30 (Mcfe/d)': [self.NET_MCFED],
+            'PV-10 ($M)': [self.PV10],
+            'Payout (Months)': [self.payout],
+            'PVR-10': [self.PVR10]
+        }
+        """
+        self.metricsDict = {
+            'Incremental EUR (Bcf)': str(round(self.GROSS_GAS, 2)),
+            'Gross CAPEX ($M)': str(round(self.GROSS_CAPEX, 2)),
+            'Net CAPEX ($M)': str(round(self.NET_CAPEX)),
+            'Net Res. (Mboe)': str(round(self.NET_MBOE)),
+            'Net Res. (MMcfe)': str(round(self.NET_MMCFE)),
+            'Net IP30 (Boe/d)': str(round(self.NET_BOED)),
+            'Net IP30 (Mcfe/d)': str(round(self.NET_MCFED)),
+            'PV-10 ($M)': str(round(self.PV10)),
+            'Payout (Months)': str(self.payout),
+            'PVR-10': str(round(self.PVR10, 1))
+        }
+        return self.metricsDict
     def make_run_table(self):
         self.col_titles = "Time (Days),Gross Gas (Mcf),Gross Oil (Bbl),Gross NGL (Bbl),Net Gas (Mcf),Net Oil (Mcf),Net NGL (Mcf),Base Gas Price ($/Mcf),Base Oil Price ($/Bbl),Realized Gas Price ($/Mcf),Realized Oil Price ($/Mcf,Realized NGL Price ($/Bbl),Gas Revenue ($),Oil Revenue ($),NGL Revenue ($),Total Net Revenue ($),Severance Tax ($),Ad Valorem Tax ($),Total Expenses ($),Net CAPEX ($),Net PV0 ($),Cum PV0 ($),Net PV10 ($),Cum PV10 ($)"
         table = np.column_stack((self.t,self.gross_gas,self.gross_oil,self.gross_ngl,self.net_gas,self.net_oil,self.net_ngl,
