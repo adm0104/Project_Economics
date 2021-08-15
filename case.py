@@ -380,6 +380,12 @@ class case:
         self.NET_BOED = int(round(self.net_boe[0] / 30.4375, 2))
         self.NET_MCFED = int(round(self.net_mcfe[0] / 30.4375, 2))
         self.GROSS_GAS = round(np.sum(self.gross_gas) / 1000000, 2)
+        self.GROSS_GAS_BOE = round(np.sum(self.gross_gas) / 6, 2)
+        self.GROSS_NGL = round(np.sum(self.gross_ngl))
+        self.GROSS_OIL = round(np.sum(self.gross_oil))
+        self.NET_GAS_REV = round(np.sum(self.rev_gas))
+        self.NET_OIL_REV = round(np.sum(self.rev_oil))
+        self.NET_NGL_REV = round(np.sum(self.rev_ngl))
         if self.NET_CAPEX == 0 or self.GROSS_GAS == 0:
             self.PVR0 = 0
             self.PVR10 = 0
@@ -387,21 +393,6 @@ class case:
             self.PVR0 = self.PV0 / self.NET_CAPEX + 1
             self.PVR10 = np.sum(self.ncf_pv10) / self.NET_CAPEX_DISC + 1
     def getMetricsDict(self):
-        #self.metrics()
-        """
-        self.metricsDict = {
-            'Incremental EUR (Bcf)': [self.GROSS_GAS],
-            'Gross CAPEX ($M)': [self.GROSS_CAPEX],
-            'Net CAPEX ($M)': [self.NET_CAPEX],
-            'Net Res. (Mboe)': [self.NET_MBOE],
-            'Net Res. (MMcfe)': [self.NET_MMCFE],
-            'Net IP30 (Boe/d)': [self.NET_BOED],
-            'Net IP30 (Mcfe/d)': [self.NET_MCFED],
-            'PV-10 ($M)': [self.PV10],
-            'Payout (Months)': [self.payout],
-            'PVR-10': [self.PVR10]
-        }
-        """
         self.metricsDict = {
             'Incremental EUR (Bcf)': str(round(self.GROSS_GAS, 2)),
             'Gross CAPEX ($M)': str(round(self.GROSS_CAPEX, 2)),
