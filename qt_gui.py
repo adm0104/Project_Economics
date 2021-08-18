@@ -27,24 +27,24 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         # Name your app!
-        self.setWindowTitle('EightyTwenty')
+        self.setWindowTitle('Econ Tool')
 
         # Define input table rows & headers
         self.paramRowHeaders = [
-            'CAPEX',
+            'CAPEX ($)',
             'Decline Type',
-            'Initial Rate, mcfd',
-            'Initial Decline Rate, %/yr',
+            'Initial Rate (mcfd)',
+            'Initial Decline Rate (%/yr)',
             'b-factor',
-            'Terminal Decline Rate, %/yr',
-            'Peak Rate',
+            'Terminal Decline Rate (%/yr)',
+            'Months to Peak Rate',
             'Shrink',
-            'NGL Yield',
-            'Oil Yield',
-            'Fixed Cost',
-            'Variable Gas Cost',
-            'Variable Oil Cost',
-            'Overhead'
+            'NGL Yield (Bbl/Mmcf)',
+            'Oil Yield (Bbl/Mmcf)',
+            'Fixed Cost ($/mo)',
+            'Variable Gas Cost ($/Mcf)',
+            'Variable Oil Cost ($/Bbl)',
+            'Overhead ($/mo)'
         ]
         self.caseColHeaders = [
             'p10',
@@ -194,20 +194,20 @@ class MainWindow(QMainWindow):
 
         # Pre-populate with default values as placeholders
         self.defaultParams = {
-            'CAPEX': ['200000', '200000', '200000', '200000', '200000'],
+            'CAPEX ($)': ['200000', '200000', '200000', '200000', '200000'],
             'Decline Type': [2, 2, 2, 0, 0],
-            'Initial Rate, mcfd': ['1000', '800', '500', '80', '100'],
-            'Initial Decline Rate, %/yr': ['0.25', '0.25', '0.25', '0.05', '0.05'],
+            'Initial Rate (mcfd)': ['1000', '800', '500', '80', '100'],
+            'Initial Decline Rate (%/yr)': ['0.25', '0.25', '0.25', '0.05', '0.05'],
             'b-factor': ['2', '2', '2', '0', '0'],
-            'Terminal Decline Rate, %/yr': ['0.05', '0.05', '0.05', '0.05', '0.05'],
-            'Peak Rate': ['800', '800', '800', '800', '800'],
+            'Terminal Decline Rate (%/yr)': ['0.05', '0.05', '0.05', '0.05', '0.05'],
+            'Months to Peak Rate': ['36', '36', '36', '36', '36'],
             'Shrink': ['0.9', '0.9', '0.9', '0.9', '0.9'],
-            'NGL Yield': ['20', '20', '20', '20', '20'],
-            'Oil Yield': ['5', '5', '5', '5', '5'],
-            'Fixed Cost': ['1000', '1000', '1000', '1000', '1000'],
-            'Variable Gas Cost': ['0.5', '0.5', '0.5', '0.5', '0.5'],
-            'Variable Oil Cost': ['3', '3', '3', '3', '3',],
-            'Overhead': ['300', '300', '300', '300', '300',]
+            'NGL Yield (Bbl/Mmcf)': ['20', '20', '20', '20', '20'],
+            'Oil Yield (Bbl/Mmcf)': ['5', '5', '5', '5', '5'],
+            'Fixed Cost ($/mo)': ['1000', '1000', '1000', '1000', '1000'],
+            'Variable Gas Cost ($/Mcf)': ['0.5', '0.5', '0.5', '0.5', '0.5'],
+            'Variable Oil Cost ($/Bbl)': ['3', '3', '3', '3', '3',],
+            'Overhead ($/mo)': ['300', '300', '300', '300', '300',]
         }
 
         for i, j in enumerate(self.paramRowHeaders):
@@ -327,7 +327,7 @@ class MainWindow(QMainWindow):
         for i, k in enumerate(resultsTableFrame.index):
             for j, l in enumerate(resultsTableFrame.columns):
                 self.econResultsTable.setItem(i, j, QTableWidgetItem(resultsTableFrame[l][k]))
-        print(params['p50']['capex'])
+        #print(params['p50']['capex'])
 
         # Populate results plots (bottom right quadrant)
         # Statement below executes each button-press after the first
