@@ -10,11 +10,11 @@ import Toolbox as tb
 
 months = 600
 dt = np.linspace(0,months,months+1) * 30.4375
-incremental = True                                              # Boolean - should this be an incremental run?
+incremental = False                                              # Boolean - should this be an incremental run?
 
 # Ownership
 WI = 1                                                          # Working interest          (Fraction)
-NRI = 0.86                                                      # Net revenue interest      (Fraction)
+NRI = 0.9                                                      # Net revenue interest      (Fraction)
 
 # Shrinks & Yields
 shrink = 0.83                                                   # Gas shrink factor         (mcf/mcf)
@@ -47,11 +47,11 @@ ngl_diff = 0.39
 
 # Economic Life Calc Mode
 # Same as Aries: NO, BFIT, or OK
-LOSS = "BFIT"
+LOSS = "OK"
 
 # Probability of success
 # As a fraction
-p_s = 0.9
+p_s = 1
 
 # Initialize Outcome Objects
 p10 = case.case(dt, WI, NRI)
@@ -76,28 +76,28 @@ if incremental:
 # P10 Decline Parameters
 # 1 = Exponential, 2 = Hyperbolic, 3 = Harmonic, 4 = Modified Hyperbolic , 5 = NULL, 6 = peak rate (coal dewatering)
 p10.Decline_type = 4                                               
-p10.qi = 190
-p10.Di_sec = 0.58
-p10.b = 2.6
-p10.Dterm_sec = 0.08
+p10.qi = 500
+p10.Di_sec = 0.25
+p10.b = 2
+p10.Dterm_sec = 0.05
 p10.peak = -999.25
 
 # P50 Decline Parameters
 # 1 = Exponential, 2 = Hyperbolic, 3 = Harmonic, 4 = Modified Hyperbolic , 5 = NULL, 6 = peak rate (coal dewatering)
 p50.Decline_type = 4
-p50.qi = 150
-p50.Di_sec = 0.58
-p50.b = 2.6
-p50.Dterm_sec = 0.08
+p50.qi = 500
+p50.Di_sec = 0.25
+p50.b = 2
+p50.Dterm_sec = 0.05
 p50.peak = -999.25
 
 # P90 Decline Parameters
 # 1 = Exponential, 2 = Hyperbolic, 3 = Harmonic, 4 = Modified Hyperbolic , 5 = NULL, 6 = peak rate (coal dewatering)
 p90.Decline_type = 4
-p90.qi = 120
-p90.Di_sec = 0.58
-p90.b = 2.6
-p90.Dterm_sec = 0.08
+p90.qi = 500
+p90.Di_sec = 0.25
+p90.b = 2
+p90.Dterm_sec = 0.05
 p90.peak = -999.25
 
 # Failure Decline Parameters

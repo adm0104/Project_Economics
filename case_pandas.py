@@ -2,73 +2,107 @@ import numpy as np
 import pandas as pd
 
 class case:
-    def __init__(self,dt,WI,NRI):
-        self.dt = dt
-        self.t = (np.linspace(1,np.size(dt)-1,np.size(dt)-1)-0.5)*30.4375
-        self.periods = np.size(self.t)
-        self.WI = WI
-        self.NRI = NRI
-    def decline(self,Decline_type,qi,Di_sec,Dterm_sec,b,peak):
-        num_entry = np.size(self.dt)
-        num_center = num_entry - 1
-        self.q = np.zeros(num_entry)
-        self.Qp = np.zeros(num_center)
-        if Decline_type == 1 or Decline_type == 'Exponential':
-            ##  1 - Exponential Decline
-            Di = -np.log(1-Di_sec)                                                          # Initial decline rate      (Nominal /yr)
-            self.q = qi * np.exp(-Di*self.dt * (1/365.25))                                  # Monthly starting rate     (Mcf/d)
-            for i in range(num_center):
-                self.Qp[i] = (self.q[i]-self.q[i+1]) / Di * 365.25                          # Monthly cumulative        (Mcf)
-        elif Decline_type == 2 or Decline_type == 'Hyperbolic':
-            ##  2 - Hyperbolic Decline
-            if b > 1: print("*** WARNING - B-FACTOR OVER 1 YIELDS NON-CONVERGENT SOLUTION - CONSIDER MODIFIED HYPERBOLIC ***")
-            Di = ((1-Di_sec)**(-b)-1)/b                                                     # Initial decline rate      (Nominal /yr)
-            self.q = qi * (1+b*Di*self.dt*(1/365.25))**(-1/b)                               # Monthly starting rate     (Mcf/d)
+    def __init__(self, months, WI, NRI):
+        # Builds case time series table as a Pandas Dataframe, stored as an object property
+        # Saves case parameters (non-time-series data) in a Pandas Dataframe, stored as an object property
+        # Saves all timesteps from time series as dt property for use in decline calculations
+        #
+        # *** Inputs ***
+        # months:           # of months in run                          (months)
+        # WI:               Working Interest                            (fraction)
+        # NRI:              Net Revenue Interest                        (fraction)
+        #
+        # *** Generated Object Properties ***
+        # dt:               each instantaneous timestep in the run      (days)
+        # timeSeries:       dataframe in which full run will be stored  (dataframe)
+        #   tStart:         entry time for each month                   (days)
+        #   tEnd:           ending time for each month                  (days)
+        #   tMid:           mid-point time for each month               (days)
+        # daysInMonth:      constant # of days per month                (days)
+        #   **Note** daysInMonth should be 30.4375 to match Aries results
+        # params:           dataframe in which parameters are stored    (dataframe)
+        #   months:         # of months in run                          (months)
+        #   WI:             Working Interest                            (fraction)
+        #   NRI:            Net Revenue Interest                        (fraction)
+
+        self.timeSeries = pd.DataFrame(
+            columns = [
+                'tStart', 'tMid', 'tEnd', 'qStart', 'qEnd', 'Volume'
+            ],
+            index = [
+                np.arange(months)
+            ]
+        )
+
+        self.daysInMonth = 30.4375
+        self.dt = np.linspace(0, months, months + 1) * self.daysInMonth
+        self.timeSeries['tStart'] = self.dt[:-1]
+        self.timeSeries['tEnd'] = self.dt[1:]
+        self.timeSeries['tMid'] = self.timeSeries['tEnd'] - self.daysInMonth / 2
+        self.params = pd.DataFrame({'months': [months], 'WI': [WI], 'NRI': [NRI]})
+
+    def decline(self, Decline_type, qi, Di_sec, Dterm_sec, b, peak):
+        if Decline_type == 'Exponential' or Decline_type == 1:
+            Di = -np.log(1 - Di_sec)
+            q = qi * np.exp(-Di * self.dt * (1 / 365.25))
+            self.timeSeries['qStart'] = q[:-1]
+            self.timeSeries['qEnd'] = q[1:]
+            self.timeSeries['Volume'] = (self.timeSeries['qStart'] - self.timeSeries['qEnd']) / Di * 365.25
+
+        elif Decline_type == 'Hyperbolic' or  Decline_type == 2:
+            Di = ((1 - Di_sec) ** (-b) - 1) / b
+            q = qi * (1 + b * Di * self.dt * (1 / 365.25)) ** (-1 / b)
+            self.timeSeries['qStart'] = q[:-1]
+            self.timeSeries['qEnd'] = q[1:]
+            De = Di / (1 + b * Di * self.dt[:-1] / 365.25)
             if b == 1:
-                for i in range(num_center):
-                    Dtemp = Di / (1+b*Di*self.dt[i]/365.25)
-                    self.Qp[i] = (self.q[i]/Dtemp)*np.log(self.q[i]/self.q[i+1]) * 365.25   # Monthly cumulative        (Mcf)
+                self.timeSeries['Volume'] = (self.timeSeries['qStart'] / De) * np.log(self.timeSeries['qStart'] / self.timeSeries['qEnd']) * 365.25
             else:
-                for i in range(num_center):
-                    Dtemp = Di / (1+b*Di*self.dt[i]/365.25)
-                    self.Qp[i] = (self.q[i]**b)*(self.q[i]**(1-b)-self.q[i+1]**(1-b)) / ((1-b)*Dtemp) * 365.25
-        elif Decline_type == 3:
-            ## 3 - Harmonic Decline
-            Di = Di_sec / (1-Di_sec)                                                        # Initial decline rate      (Nominal /yr)
-            self.q = qi / (1+Di*self.dt/365.25)                                             # Monthly starting rate     (Mcf/d)
-            for i in range(num_center):
-                Dtemp = Di / (1+Di*self.dt[i]/365.25)
-                self.Qp[i] = (self.q[i]/Dtemp)*np.log(self.q[i]/self.q[i+1]) * 365.25       # Monthly cumulative        (Mcf)
-        elif Decline_type == 4 or Decline_type == 'Modified Arps':
-            ## 4 - Modified Hyperbolic Decline
-            Di = ((1-Di_sec)**(-b)-1) / b                                                   # Initial decline rate      (Nominal /yr)
-            Dterm = -np.log(1-Dterm_sec)                                                    # Terminal decline rate     (Nominal /yr)
-            t_sw = (Di/Dterm-1) / (b*Di) * 365.25                                           # Hyp->Exp switch time      (days)
-            q_sw = qi * (1+b*Di*t_sw*(1/365.25))**(-1/b)                                    # Rate at switch            (Mcf/d)
-            sw_pre_ind = int(t_sw // 30.4375)                                               # dt index pre-switch       (no units)
-            qi_hind = q_sw * np.exp(Dterm*t_sw*(1/365.25))                                  # Hindcast qi for exp.      (Mcf/d)
-            for i in range(sw_pre_ind+1):
-                self.q[i] = qi * (1+b*Di*self.dt[i]*(1/365.25))**(-1/b)                     # Hyperbolic leg rates      (Mcf/d)
-            for i in range(sw_pre_ind+1,num_entry):
-                self.q[i] = qi_hind * np.exp(-Dterm*self.dt[i]*(1/365.25))                  # Exponential leg rates     (Mcf/d)
+                self.timeSeries['Volume'] = (self.timeSeries['qStart'] ** b) * (self.timeSeries['qStart'] ** (1 - b) - self.timeSeries['qEnd'] ** (1 - b)) / ((1 - b) * De) * 365.25
+
+        elif Decline_type == 'Harmonic' or Decline_type == 3:
+            Di = Di_sec / (1 - Di_sec)
+            q = qi / (1 + Di * self.dt / 365.25)
+            self.timeSeries['qStart'] = q[:-1]
+            self.timeSeries['qEnd'] = q[1:]
+            De = Di / (1 + Di * self.dt[:-1] / 365.25)
+            self.timeSeries['Volume'] = (self.timeSeries['qStart'] / De) * np.log(self.timeSeries['qStart'] / self.timeSeries['qEnd']) * 365.25
+
+        elif Decline_type == 'Modified Arps' or Decline_type == 4:
+            Di = ((1 - Di_sec) ** (-b) - 1) / b
+            Dterm = -np.log(1 - Dterm_sec)
+            tSwitch = (Di / Dterm - 1) / (b * Di) * 365.25
+            qSwitch = qi * (1 + b * Di * tSwitch * (1 / 365.25)) ** (-1 / b)
+            self.qSwitch = qSwitch
+            self.tSwitch = tSwitch
+            q = np.concatenate([
+                qi * (1 + b * Di * self.dt[self.dt < tSwitch] * (1 / 365.25)) ** (-1 / b),
+                qSwitch * np.exp(-Dterm * (self.dt[self.dt >= tSwitch] - tSwitch) * (1 / 365.25))
+            ])
+            self.timeSeries['qStart'] = q[:-1]
+            self.timeSeries['qEnd'] = q[1:]
+            De = Di / (1 + b * Di * self.dt[self.dt < tSwitch] / 365.25)
             if b == 1:
-                for i in range(sw_pre_ind):
-                    Dtemp = Di / (1+b*Di*self.dt[i]/365.25)
-                    self.Qp[i] = (self.q[i]/Dtemp)*np.log(self.q[i]/self.q[i+1]) * 365.25   # Monthly cumulative        (Mcf)
-                Dtemp = Di / (1+b*Di*self.dt[i+1]/365.25)
-                self.Qp[sw_pre_ind] = (self.q[i+1]*np.log(self.q[i+1]/q_sw)/Dtemp + (q_sw-self.q[i+2])/Dterm) * 365.25
-                for i in range(sw_pre_ind+1,num_center):
-                    self.Qp[i] = (self.q[i]-self.q[i+1])/Dterm * 365.25
+                qStart = self.timeSeries['qStart'][self.timeSeries['tEnd'] < tSwitch]
+                qEnd = self.timeSeries['qEnd'][self.timeSeries['tEnd'] < tSwitch]
+                self.timeSeries.loc[self.timeSeries['tEnd'] < tSwitch, 'Volume'] = (qStart / De[:-1]) * np.log(qStart / qEnd) * 365.25
+                switchIndex = self.timeSeries.loc[(self.timeSeries['tEnd'] > tSwitch) & (self.timeSeries['tStart'] < tSwitch), 'Volume'].index[0][0]
+                self.timeSeries.loc[switchIndex, 'Volume'] = (self.timeSeries['qStart'][switchIndex] * np.log(self.timeSeries['qStart'][switchIndex] / qSwitch) / De[-1] + (qSwitch - self.timeSeries['qEnd'][switchIndex]) / Dterm) * 365.25
             else:
-                for i in range(sw_pre_ind):
-                    Dtemp = Di / (1+b*Di*self.dt[i]/365.25)
-                    self.Qp[i] = (self.q[i]**b)*(self.q[i]**(1-b)-self.q[i+1]**(1-b)) / ((1-b)*Dtemp) * 365.25
-                Dtemp = Di / (1+b*Di*self.dt[i+1]/365.25)
-                self.Qp[sw_pre_ind] = ((self.q[i+1]**b)*(self.q[i+1]**(1-b)-q_sw**(1-b)) / ((1-b)*Dtemp) + (q_sw-self.q[i+2])/Dterm) * 365.25
-                for i in range(sw_pre_ind+1,num_center):
-                    self.Qp[i] = (self.q[i]-self.q[i+1])/Dterm * 365.25
+                qStart = self.timeSeries['qStart'][self.timeSeries['tEnd'] < tSwitch]
+                qEnd = self.timeSeries['qEnd'][self.timeSeries['tEnd'] < tSwitch]
+                self.timeSeries.loc[self.timeSeries['tEnd'] < tSwitch, 'Volume'] = (qStart ** b) * (qStart ** (1 - b) - qEnd ** (1 - b)) / ((1 - b) * De[:-1]) * 365.25
+                switchIndex = self.timeSeries.loc[(self.timeSeries['tEnd'] > tSwitch) & (self.timeSeries['tStart'] < tSwitch), 'Volume'].index[0][0]
+                self.timeSeries.loc[switchIndex, 'Volume'] = ((self.timeSeries['qStart'][switchIndex] ** b) * (self.timeSeries['qStart'][switchIndex] ** (1 - b) - qSwitch ** (1 - b)) / ((1 - b) * De[-1]) + (qSwitch - self.timeSeries['qEnd'][switchIndex]) / Dterm) * 365.25
+            qStart = self.timeSeries['qStart'][self.timeSeries['tStart'] > tSwitch]
+            qEnd = self.timeSeries['qEnd'][self.timeSeries['tStart'] > tSwitch]
+            self.timeSeries.loc[self.timeSeries['tStart'] > tSwitch, 'Volume'] = (qStart - qEnd) / Dterm * 365.25
+            
         elif Decline_type == 5 or Decline_type == 'No Rate':
-            pass
+            self.timeSeries['qStart'] = 0
+            self.timeSeries['qEnd'] = 0
+            self.timeSeries['Volume'] = 0
+
         elif Decline_type == 6 or Decline_type == 'CBM Dewatering/Incline':
             ##  6 - 2-Segment Exponential
             ##  Intended for use on Fruitland Coal wells with a dewatering period. "Peak" is the number of months to peak rate
@@ -86,6 +120,7 @@ class case:
                 self.Qp[i] = (self.q[i]-self.q[i+1]) / Di * 365.25                          # Monthly cumulative        (Mcf)
             for i in range(peak, num_center):
                 self.Qp[i] = (self.q[i]-self.q[i+1]) / Dterm * 365.25                          # Monthly cumulative        (Mcf)
+
     def production(self,oil_yield,ngl_yield,shrink):
         self.shrink = shrink
         self.oil_yield = oil_yield
@@ -103,9 +138,9 @@ class case:
         self.net_mcfe = self.net_boe * 6
     def pricing(self,type,gas_price,oil_price,gas_diff,oil_diff,ngl_diff):
         if type == "flat":
-            self.gas_price_base = np.ones(self.periods) * gas_price
+            self.gas_price_base = np.ones(self.months) * gas_price
             self.gas_price_real = self.gas_price_base + gas_diff
-            self.oil_price_base = np.ones(self.periods) * oil_price
+            self.oil_price_base = np.ones(self.months) * oil_price
             self.oil_price_real = self.oil_price_base + oil_diff
             self.ngl_price_real = self.oil_price_base * ngl_diff
     def revenue(self):
@@ -120,21 +155,21 @@ class case:
         self.overhead_rate = overhead
         self.adval_rate = adval_rate
         self.sev_rate = sev_rate
-        self.fixed_cost = np.ones(self.periods) * fixed_cost * self.WI
-        self.var_cost = (self.gross_gas * self.shrink * var_gas_cost + self.gross_oil * var_oil_cost) * self.WI
-        self.overhead = np.ones(self.periods) * overhead * self.WI
+        self.fixed_cost = np.ones(self.months) * fixed_cost * self.params['WI']
+        self.var_cost = (self.gross_gas * self.shrink * var_gas_cost + self.gross_oil * var_oil_cost) * self.params['WI']
+        self.overhead = np.ones(self.months) * overhead * self.params['WI']
         self.sev_tax = sev_rate * self.rev_total
         self.adval_tax = adval_rate * (self.rev_total - self.sev_tax)
         self.exp_total = self.fixed_cost + self.var_cost + self.overhead + self.adval_tax + self.sev_tax
     def capex(self,month,capex):                            
-        self.gross_capex = np.zeros(self.periods)
-        self.net_capex = np.zeros(self.periods)
-        self.net_capex_disc = np.zeros(self.periods)
+        self.gross_capex = np.zeros(self.months)
+        self.net_capex = np.zeros(self.months)
+        self.net_capex_disc = np.zeros(self.months)
         j = 0
         for i in month:
             self.gross_capex[i] = capex[j]
-            self.net_capex[i] = capex[j] * self.WI
-            self.net_capex_disc[i] = self.WI * capex[j] / (1+0.1)**((month[j]) / 12)
+            self.net_capex[i] = capex[j] * self.params['WI']
+            self.net_capex_disc[i] = self.params['WI'] * capex[j] / (1+0.1)**((month[j]) / 12)
             j += 1
     def swansons_mean(self, p10, p50, p90, pfail, p_s):
         # Calculate production for a "mean" case (non-incremental)
@@ -170,7 +205,7 @@ class case:
 
         # Expenses Section
         self.fixed_cost = p_s * (0.3 * p10.fixed_cost + 0.4 * p50.fixed_cost + 0.3 * p90.fixed_cost) + (1-p_s) * pfail.fixed_cost
-        # self.var_cost = (self.gross_gas * self.shrink * p50.var_gas_rate + self.gross_oil * p50.var_oil_rate) * self.WI
+        # self.var_cost = (self.gross_gas * self.shrink * p50.var_gas_rate + self.gross_oil * p50.var_oil_rate) * self.params['WI']
         self.var_cost = p_s * (0.3 * p10.var_cost + 0.4 * p50.var_cost + 0.3 * p90.var_cost) + (1-p_s) * pfail.var_cost
         self.overhead = p_s * (0.3 * p10.overhead + 0.4 * p50.overhead + 0.3 * p90.overhead) + (1-p_s) * pfail.overhead
         self.sev_tax = p50.sev_rate * self.rev_total
@@ -180,9 +215,9 @@ class case:
         # Capex Section
         self.gross_capex = p_s * (0.3 * p10.gross_capex + 0.4 * p50.gross_capex + 0.3 * p90.gross_capex) + (1-p_s) * pfail.gross_capex
         self.net_capex = p_s * (0.3 * p10.net_capex + 0.4 * p50.net_capex + 0.3 * p90.net_capex) + (1-p_s) * pfail.net_capex
-        self.net_capex_disc = np.zeros(self.periods)
-        for i in range(self.periods):
-            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.t[i] - 30.4375 / 2) / 365.25)
+        self.net_capex_disc = np.zeros(self.months)
+        for i in range(self.months):
+            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.timeSeries['tMid'][i] - 30.4375 / 2) / 365.25)
     def swansons_mean_inc(self, p10, p50, p90, pfail, pbase, p_s):
         # Calculate production for a "mean" case (incremental)
         # Replaces "production" and "expenses" class methods
@@ -219,7 +254,7 @@ class case:
 
         # Expenses Section
         self.fixed_cost = p_s * (0.3 * p10.fixed_cost + 0.4 * p50.fixed_cost + 0.3 * p90.fixed_cost) + (1-p_s) * pfail.fixed_cost - pbase.fixed_cost
-        # self.var_cost = (self.gross_gas * self.shrink * p50.var_gas_rate + self.gross_oil * p50.var_oil_rate) * self.WI
+        # self.var_cost = (self.gross_gas * self.shrink * p50.var_gas_rate + self.gross_oil * p50.var_oil_rate) * self.params['WI']
         self.var_cost = p_s * (0.3 * p10.var_cost + 0.4 * p50.var_cost + 0.3 * p90.var_cost) + (1-p_s) * pfail.var_cost - pbase.var_cost
         self.overhead = p_s * (0.3 * p10.overhead + 0.4 * p50.overhead + 0.3 * p90.overhead) + (1-p_s) * pfail.overhead - pbase.overhead
         self.sev_tax = p50.sev_rate * self.rev_total
@@ -229,9 +264,9 @@ class case:
         # Capex Section
         self.gross_capex = p_s * (0.3 * p10.gross_capex + 0.4 * p50.gross_capex + 0.3 * p90.gross_capex) + (1-p_s) * pfail.gross_capex - pbase.gross_capex
         self.net_capex = p_s * (0.3 * p10.net_capex + 0.4 * p50.net_capex + 0.3 * p90.net_capex) + (1-p_s) * pfail.net_capex - pbase.net_capex
-        self.net_capex_disc = np.zeros(self.periods)
-        for i in range(self.periods):
-            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.t[i] - 30.4375 / 2) / 365.25)
+        self.net_capex_disc = np.zeros(self.months)
+        for i in range(self.months):
+            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.timeSeries['tMid'][i] - 30.4375 / 2) / 365.25)
     def incrementalize(self, pbase):
         # Calculate production for a "mean" case (incremental)
         # Replaces "production" and "expenses" class methods
@@ -269,25 +304,25 @@ class case:
         # Capex Section
         self.gross_capex = self.gross_capex - pbase.gross_capex
         self.net_capex = self.net_capex - pbase.net_capex
-        self.net_capex_disc = np.zeros(self.periods)
-        for i in range(self.periods):
-            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.t[i] - 30.4375 / 2) / 365.25)
+        self.net_capex_disc = np.zeros(self.months)
+        for i in range(self.months):
+            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.timeSeries['tMid'][i] - 30.4375 / 2) / 365.25)
         self.cash_flow()
         self.life(self.LOSS)
         self.metrics()
     def cash_flow(self):
         self.ncf_pv0 = self.rev_total - self.net_capex - self.exp_total
-        self.ccf_pv0 = np.zeros(self.periods)
+        self.ccf_pv0 = np.zeros(self.months)
         self.ccf_pv0[0] = self.ncf_pv0[0]
-        self.ncf_pv10 = (self.rev_total - self.exp_total) / (1+0.1)**((self.t - 30.4375/2) / 365.25) - self.net_capex_disc
-        self.ccf_pv10 = np.zeros(self.periods)
+        self.ncf_pv10 = (self.rev_total - self.exp_total) / (1+0.1)**((self.timeSeries['tMid'] - 30.4375/2) / 365.25) - self.net_capex_disc
+        self.ccf_pv10 = np.zeros(self.months)
         self.ccf_pv10[0] = self.ncf_pv10[0]
         self.payout = -999
-        for i in range(1,self.periods):
+        for i in range(1,self.months):
             self.ccf_pv0[i] = self.ncf_pv0[i] + self.ccf_pv0[i-1]
             self.ccf_pv10[i] = self.ncf_pv10[i] + self.ccf_pv10[i-1]
             if self.ccf_pv0[i] > 0 and self.ccf_pv0[i-1] < 0:
-                self.payout = (self.t[i] - 30.4375/2) / 30.4375
+                self.payout = (self.timeSeries['tMid'][i] - 30.4375/2) / 30.4375
         if self.payout == -999:
             self.payout = "N/A"
         else:
@@ -299,10 +334,10 @@ class case:
             # Truncate when cash flow is negative, ignoring overhead
             life_ind = 0
             detect = self.rev_total[0] - self.fixed_cost[0] - self.var_cost[0] - self.sev_tax[0] - self.adval_tax[0]
-            while detect > 0 and life_ind < self.periods-1:
+            while detect > 0 and life_ind < self.months-1:
                 life_ind+=1
                 detect = self.rev_total[life_ind] - self.fixed_cost[life_ind] - self.var_cost[life_ind] - self.sev_tax[life_ind] - self.adval_tax[life_ind]
-            for i in range(life_ind,self.periods):
+            for i in range(life_ind,self.months):
                 self.gross_gas[i] = non_ind
                 self.gross_gas_rate[i] = non_ind
                 self.gross_oil[i] = non_ind
@@ -328,15 +363,15 @@ class case:
                 self.ccf_pv0[i] = non_ind
                 self.ncf_pv10[i] = non_ind
                 self.ccf_pv10[i] = non_ind
-            self.EOL = self.t[life_ind]
+            self.EOL = self.timeSeries['tMid'][life_ind]
         elif LOSS == "BFIT":
             # Truncate when cash flow is negative, including all expenses
             life_ind = 0
             detect = self.rev_total[0] - self.exp_total[0]
-            while detect > 0 and life_ind < self.periods-1:
+            while detect > 0 and life_ind < self.months-1:
                 life_ind+=1
                 detect = self.rev_total[life_ind] - self.exp_total[life_ind]
-            for i in range(life_ind,self.periods):
+            for i in range(life_ind,self.months):
                 self.gross_gas[i] = non_ind
                 self.gross_gas_rate[i] = non_ind
                 self.gross_oil[i] = non_ind
@@ -362,10 +397,10 @@ class case:
                 self.ccf_pv0[i] = non_ind
                 self.ncf_pv10[i] = non_ind
                 self.ccf_pv10[i] = non_ind
-            self.EOL = self.t[life_ind]
+            self.EOL = self.timeSeries['tMid'][life_ind]
         elif LOSS == "OK":
             # Allow loss - make no modifications to existing calculations
-            self.EOL = max(self.t)
+            self.EOL = max(self.timeSeries['tMid'])
     def metrics(self):
         self.GROSS_CAPEX = int(round(np.sum(self.gross_capex) / 1000, 2))
         self.NET_CAPEX = int(round(np.sum(self.net_capex) / 1000, 2))
@@ -406,7 +441,7 @@ class case:
         return self.metricsDict
     def make_run_table(self):
         self.col_titles = "Time (Days),Gross Gas (Mcf),Gross Oil (Bbl),Gross NGL (Bbl),Net Gas (Mcf),Net Oil (Mcf),Net NGL (Mcf),Base Gas Price ($/Mcf),Base Oil Price ($/Bbl),Realized Gas Price ($/Mcf),Realized Oil Price ($/Mcf,Realized NGL Price ($/Bbl),Gas Revenue ($),Oil Revenue ($),NGL Revenue ($),Total Net Revenue ($),Severance Tax ($),Ad Valorem Tax ($),Total Expenses ($),Net CAPEX ($),Net PV0 ($),Cum PV0 ($),Net PV10 ($),Cum PV10 ($)"
-        table = np.column_stack((self.t,self.gross_gas,self.gross_oil,self.gross_ngl,self.net_gas,self.net_oil,self.net_ngl,
+        table = np.column_stack((self.timeSeries['tMid'],self.gross_gas,self.gross_oil,self.gross_ngl,self.net_gas,self.net_oil,self.net_ngl,
         self.gas_price_base,self.oil_price_base,self.gas_price_real,self.oil_price_real,self.ngl_price_real,self.rev_gas,
         self.rev_oil,self.rev_ngl,self.rev_total,self.sev_tax,self.adval_tax,self.exp_total,self.net_capex,self.ncf_pv0,
         self.ccf_pv0,self.ncf_pv10,self.ccf_pv10))
