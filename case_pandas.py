@@ -33,8 +33,10 @@ class case:
                 np.arange(months)
             ]
         )
-
+        
+        self.months = months
         self.daysInMonth = 30.4375
+        self.daysInYear = self.daysInMonth * 12
         self.dt = np.linspace(0, months, months + 1) * self.daysInMonth
         self.timeSeries['tStart'] = self.dt[:-1]
         self.timeSeries['tEnd'] = self.dt[1:]
@@ -44,82 +46,82 @@ class case:
     def decline(self, Decline_type, qi, Di_sec, Dterm_sec, b, peak):
         if Decline_type == 'Exponential' or Decline_type == 1:
             Di = -np.log(1 - Di_sec)
-            q = qi * np.exp(-Di * self.dt * (1 / 365.25))
+            q = qi * np.exp(-Di * self.dt * (1 / self.daysInYear))
             self.timeSeries['qStart'] = q[:-1]
             self.timeSeries['qEnd'] = q[1:]
-            self.timeSeries['Volume'] = (self.timeSeries['qStart'] - self.timeSeries['qEnd']) / Di * 365.25
+            self.timeSeries['Volume'] = (self.timeSeries['qStart'] - self.timeSeries['qEnd']) / Di * self.daysInYear
 
         elif Decline_type == 'Hyperbolic' or  Decline_type == 2:
             Di = ((1 - Di_sec) ** (-b) - 1) / b
-            q = qi * (1 + b * Di * self.dt * (1 / 365.25)) ** (-1 / b)
+            q = qi * (1 + b * Di * self.dt * (1 / self.daysInYear)) ** (-1 / b)
             self.timeSeries['qStart'] = q[:-1]
             self.timeSeries['qEnd'] = q[1:]
-            De = Di / (1 + b * Di * self.dt[:-1] / 365.25)
+            De = Di / (1 + b * Di * self.dt[:-1] / self.daysInYear)
             if b == 1:
-                self.timeSeries['Volume'] = (self.timeSeries['qStart'] / De) * np.log(self.timeSeries['qStart'] / self.timeSeries['qEnd']) * 365.25
+                self.timeSeries['Volume'] = (self.timeSeries['qStart'] / De) * np.log(self.timeSeries['qStart'] / self.timeSeries['qEnd']) * self.daysInYear
             else:
-                self.timeSeries['Volume'] = (self.timeSeries['qStart'] ** b) * (self.timeSeries['qStart'] ** (1 - b) - self.timeSeries['qEnd'] ** (1 - b)) / ((1 - b) * De) * 365.25
+                self.timeSeries['Volume'] = (self.timeSeries['qStart'] ** b) * (self.timeSeries['qStart'] ** (1 - b) - self.timeSeries['qEnd'] ** (1 - b)) / ((1 - b) * De) * self.daysInYear
 
         elif Decline_type == 'Harmonic' or Decline_type == 3:
             Di = Di_sec / (1 - Di_sec)
-            q = qi / (1 + Di * self.dt / 365.25)
+            q = qi / (1 + Di * self.dt / self.daysInYear)
             self.timeSeries['qStart'] = q[:-1]
             self.timeSeries['qEnd'] = q[1:]
-            De = Di / (1 + Di * self.dt[:-1] / 365.25)
-            self.timeSeries['Volume'] = (self.timeSeries['qStart'] / De) * np.log(self.timeSeries['qStart'] / self.timeSeries['qEnd']) * 365.25
+            De = Di / (1 + Di * self.dt[:-1] / self.daysInYear)
+            self.timeSeries['Volume'] = (self.timeSeries['qStart'] / De) * np.log(self.timeSeries['qStart'] / self.timeSeries['qEnd']) * self.daysInYear
 
         elif Decline_type == 'Modified Arps' or Decline_type == 4:
             Di = ((1 - Di_sec) ** (-b) - 1) / b
             Dterm = -np.log(1 - Dterm_sec)
-            tSwitch = (Di / Dterm - 1) / (b * Di) * 365.25
-            qSwitch = qi * (1 + b * Di * tSwitch * (1 / 365.25)) ** (-1 / b)
+            tSwitch = (Di / Dterm - 1) / (b * Di) * self.daysInYear
+            qSwitch = qi * (1 + b * Di * tSwitch * (1 / self.daysInYear)) ** (-1 / b)
             self.qSwitch = qSwitch
             self.tSwitch = tSwitch
             q = np.concatenate([
-                qi * (1 + b * Di * self.dt[self.dt < tSwitch] * (1 / 365.25)) ** (-1 / b),
-                qSwitch * np.exp(-Dterm * (self.dt[self.dt >= tSwitch] - tSwitch) * (1 / 365.25))
+                qi * (1 + b * Di * self.dt[self.dt < tSwitch] * (1 / self.daysInYear)) ** (-1 / b),
+                qSwitch * np.exp(-Dterm * (self.dt[self.dt >= tSwitch] - tSwitch) * (1 / self.daysInYear))
             ])
             self.timeSeries['qStart'] = q[:-1]
             self.timeSeries['qEnd'] = q[1:]
-            De = Di / (1 + b * Di * self.dt[self.dt < tSwitch] / 365.25)
+            De = Di / (1 + b * Di * self.dt[self.dt < tSwitch] / self.daysInYear)
             if b == 1:
                 qStart = self.timeSeries['qStart'][self.timeSeries['tEnd'] < tSwitch]
                 qEnd = self.timeSeries['qEnd'][self.timeSeries['tEnd'] < tSwitch]
-                self.timeSeries.loc[self.timeSeries['tEnd'] < tSwitch, 'Volume'] = (qStart / De[:-1]) * np.log(qStart / qEnd) * 365.25
+                self.timeSeries.loc[self.timeSeries['tEnd'] < tSwitch, 'Volume'] = (qStart / De[:-1]) * np.log(qStart / qEnd) * self.daysInYear
                 switchIndex = self.timeSeries.loc[(self.timeSeries['tEnd'] > tSwitch) & (self.timeSeries['tStart'] < tSwitch), 'Volume'].index[0][0]
-                self.timeSeries.loc[switchIndex, 'Volume'] = (self.timeSeries['qStart'][switchIndex] * np.log(self.timeSeries['qStart'][switchIndex] / qSwitch) / De[-1] + (qSwitch - self.timeSeries['qEnd'][switchIndex]) / Dterm) * 365.25
+                self.timeSeries.loc[switchIndex, 'Volume'] = (self.timeSeries['qStart'][switchIndex] * np.log(self.timeSeries['qStart'][switchIndex] / qSwitch) / De[-1] + (qSwitch - self.timeSeries['qEnd'][switchIndex]) / Dterm) * self.daysInYear
             else:
                 qStart = self.timeSeries['qStart'][self.timeSeries['tEnd'] < tSwitch]
                 qEnd = self.timeSeries['qEnd'][self.timeSeries['tEnd'] < tSwitch]
-                self.timeSeries.loc[self.timeSeries['tEnd'] < tSwitch, 'Volume'] = (qStart ** b) * (qStart ** (1 - b) - qEnd ** (1 - b)) / ((1 - b) * De[:-1]) * 365.25
+                self.timeSeries.loc[self.timeSeries['tEnd'] < tSwitch, 'Volume'] = (qStart ** b) * (qStart ** (1 - b) - qEnd ** (1 - b)) / ((1 - b) * De[:-1]) * self.daysInYear
                 switchIndex = self.timeSeries.loc[(self.timeSeries['tEnd'] > tSwitch) & (self.timeSeries['tStart'] < tSwitch), 'Volume'].index[0][0]
-                self.timeSeries.loc[switchIndex, 'Volume'] = ((self.timeSeries['qStart'][switchIndex] ** b) * (self.timeSeries['qStart'][switchIndex] ** (1 - b) - qSwitch ** (1 - b)) / ((1 - b) * De[-1]) + (qSwitch - self.timeSeries['qEnd'][switchIndex]) / Dterm) * 365.25
+                self.timeSeries.loc[switchIndex, 'Volume'] = ((self.timeSeries['qStart'][switchIndex] ** b) * (self.timeSeries['qStart'][switchIndex] ** (1 - b) - qSwitch ** (1 - b)) / ((1 - b) * De[-1]) + (qSwitch - self.timeSeries['qEnd'][switchIndex]) / Dterm) * self.daysInYear
             qStart = self.timeSeries['qStart'][self.timeSeries['tStart'] > tSwitch]
             qEnd = self.timeSeries['qEnd'][self.timeSeries['tStart'] > tSwitch]
-            self.timeSeries.loc[self.timeSeries['tStart'] > tSwitch, 'Volume'] = (qStart - qEnd) / Dterm * 365.25
+            self.timeSeries.loc[self.timeSeries['tStart'] > tSwitch, 'Volume'] = (qStart - qEnd) / Dterm * self.daysInYear
             
         elif Decline_type == 5 or Decline_type == 'No Rate':
             self.timeSeries['qStart'] = 0
             self.timeSeries['qEnd'] = 0
             self.timeSeries['Volume'] = 0
 
-        elif Decline_type == 6 or Decline_type == 'CBM Dewatering/Incline':
-            ##  6 - 2-Segment Exponential
-            ##  Intended for use on Fruitland Coal wells with a dewatering period. "Peak" is the number of months to peak rate
-            ##  and "Dterm" is simply the decline rate after peak rate is reached.
+        elif Decline_type == 'CBM Dewatering/Incline' or Decline_type == 6:
             peak = int(peak)
-            Di = -np.log(1-Di_sec)                                                          # Initial decline rate      (Nominal /yr)
-            Dterm = -np.log(1-Dterm_sec)
-            qpeak = qi * np.exp(-Di*self.dt[peak] * (1/365.25))
-            qi_hind = qpeak * np.exp(Dterm * self.dt[peak] * (1/365.25))
-            for i in range(peak):
-                self.q[i] = qi * np.exp(-Di*self.dt[i] * (1/365.25))                        # Monthly starting rate     (Mcf/d)
-            for i in range(peak, num_center+1):
-                self.q[i] = qi_hind * np.exp(-Dterm * self.dt[i] * (1/365.25))
-            for i in range(peak):
-                self.Qp[i] = (self.q[i]-self.q[i+1]) / Di * 365.25                          # Monthly cumulative        (Mcf)
-            for i in range(peak, num_center):
-                self.Qp[i] = (self.q[i]-self.q[i+1]) / Dterm * 365.25                          # Monthly cumulative        (Mcf)
+            tPeak = peak * self.daysInMonth
+            Di = -np.log(1 - Di_sec)
+            Dterm = -np.log(1 - Dterm_sec)
+            qPeak = qi * np.exp(-Di * self.timeSeries['tStart'][peak] * (1 / self.daysInYear))
+            q = np.concatenate([
+                qi * np.exp(-Di * self.dt[self.dt < tPeak] * (1 / self.daysInYear)),
+                qPeak * np.exp(-Dterm * (self.dt[self.dt >= tPeak] - tPeak) * (1 / self.daysInYear))
+            ])
+            self.timeSeries['qStart'] = q[:-1]
+            self.timeSeries['qEnd'] = q[1:]
+            De = np.concatenate([
+                np.ones(peak) * Di,
+                np.ones(self.months - peak) * Dterm
+            ])
+            self.timeSeries['Volume'] = (self.timeSeries['qStart'] - self.timeSeries['qEnd']) / De * self.daysInYear
 
     def production(self,oil_yield,ngl_yield,shrink):
         self.shrink = shrink
@@ -217,7 +219,7 @@ class case:
         self.net_capex = p_s * (0.3 * p10.net_capex + 0.4 * p50.net_capex + 0.3 * p90.net_capex) + (1-p_s) * pfail.net_capex
         self.net_capex_disc = np.zeros(self.months)
         for i in range(self.months):
-            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.timeSeries['tMid'][i] - 30.4375 / 2) / 365.25)
+            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.timeSeries['tMid'][i] - 30.4375 / 2) / self.daysInYear)
     def swansons_mean_inc(self, p10, p50, p90, pfail, pbase, p_s):
         # Calculate production for a "mean" case (incremental)
         # Replaces "production" and "expenses" class methods
@@ -266,7 +268,7 @@ class case:
         self.net_capex = p_s * (0.3 * p10.net_capex + 0.4 * p50.net_capex + 0.3 * p90.net_capex) + (1-p_s) * pfail.net_capex - pbase.net_capex
         self.net_capex_disc = np.zeros(self.months)
         for i in range(self.months):
-            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.timeSeries['tMid'][i] - 30.4375 / 2) / 365.25)
+            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.timeSeries['tMid'][i] - 30.4375 / 2) / self.daysInYear)
     def incrementalize(self, pbase):
         # Calculate production for a "mean" case (incremental)
         # Replaces "production" and "expenses" class methods
@@ -306,7 +308,7 @@ class case:
         self.net_capex = self.net_capex - pbase.net_capex
         self.net_capex_disc = np.zeros(self.months)
         for i in range(self.months):
-            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.timeSeries['tMid'][i] - 30.4375 / 2) / 365.25)
+            self.net_capex_disc[i] = self.net_capex[i] / (1+0.1)**((self.timeSeries['tMid'][i] - 30.4375 / 2) / self.daysInYear)
         self.cash_flow()
         self.life(self.LOSS)
         self.metrics()
@@ -314,7 +316,7 @@ class case:
         self.ncf_pv0 = self.rev_total - self.net_capex - self.exp_total
         self.ccf_pv0 = np.zeros(self.months)
         self.ccf_pv0[0] = self.ncf_pv0[0]
-        self.ncf_pv10 = (self.rev_total - self.exp_total) / (1+0.1)**((self.timeSeries['tMid'] - 30.4375/2) / 365.25) - self.net_capex_disc
+        self.ncf_pv10 = (self.rev_total - self.exp_total) / (1+0.1)**((self.timeSeries['tMid'] - 30.4375/2) / self.daysInYear) - self.net_capex_disc
         self.ccf_pv10 = np.zeros(self.months)
         self.ccf_pv10[0] = self.ncf_pv10[0]
         self.payout = -999
