@@ -40,7 +40,8 @@ class case:
                 'grossOil', 'grossNGL', 'grossBOE', 'grossMCFE', 'netGas', 'netOil', 'netNGL', 'netBOE', 'netMCFE',
                 'gasPriceBase', 'gasPriceRealized', 'oilPriceBase', 'oilPriceRealized', 'nglPriceRealized',
                 'netGasRevenue', 'netOilRevenue', 'netNglRevenue', 'netTotalRevenue', 'fixedCost', 'variableCost',
-                'overhead', 'severanceTax', 'adValoremTax', 'totalExpense'
+                'overhead', 'severanceTax', 'adValoremTax', 'totalExpense', 'grossCapex', 'netCapex', 'netCapexDiscounted',
+                'netPV0', 'netPV10', 'cumNetPV0', 'cumNetPV10'
             ],
             index = [
                 np.arange(self.months)
@@ -178,16 +179,14 @@ class case:
         self.timeSeries['totalExpense'] = self.timeSeries['fixedCost'] + self.timeSeries['variableCost'] + self.timeSeries['overhead']\
             + self.timeSeries['adValoremTax'] + self.timeSeries['severanceTax']
     
-    def capex(self,month,capex):                            
-        self.gross_capex = np.zeros(self.months)
-        self.net_capex = np.zeros(self.months)
-        self.net_capex_disc = np.zeros(self.months)
-        j = 0
-        for i in month:
-            self.gross_capex[i] = capex[j]
-            self.net_capex[i] = capex[j] * self.params['WI']
-            self.net_capex_disc[i] = self.params['WI'] * capex[j] / (1+0.1)**((month[j]) / 12)
-            j += 1
+    def capex(self):                            
+        self.timeSeries['grossCapex'] = 0
+        self.timeSeries['netCapex'] = 0
+        self.timeSeries['netCapexDiscounted'] = 0
+        self.timeSeries.loc[0, 'grossCapex'] = self.params[self.name]['firstMonthCapex']
+        self.timeSeries.loc[0, 'netCapex'] = self.params[self.name]['firstMonthCapex'] * self.params[self.name]['NRI']
+        self.timeSeries.loc[0, 'netCapexDiscounted'] = self.params[self.name]['firstMonthCapex'] * self.params[self.name]['NRI']
+
     def swansons_mean(self, p10, p50, p90, pfail, p_s):
         # Calculate production for a "mean" case (non-incremental)
         # Replaces production, pricing, revenue, expenses, and capex class methods
@@ -327,97 +326,20 @@ class case:
         self.cash_flow()
         self.life(self.LOSS)
         self.metrics()
-    def cash_flow(self):
-        self.ncf_pv0 = self.timeSeries['netTotalRevenue'] - self.net_capex - self.timeSeries['totalExpense']
-        self.ccf_pv0 = np.zeros(self.months)
-        self.ccf_pv0[0] = self.ncf_pv0[0]
-        self.ncf_pv10 = (self.timeSeries['netTotalRevenue'] - self.timeSeries['totalExpense']) / (1+0.1)**((self.timeSeries['tMid'] - 30.4375/2) / self.daysInYear) - self.net_capex_disc
-        self.ccf_pv10 = np.zeros(self.months)
-        self.ccf_pv10[0] = self.ncf_pv10[0]
-        self.payout = -999
-        for i in range(1,self.months):
-            self.ccf_pv0[i] = self.ncf_pv0[i] + self.ccf_pv0[i-1]
-            self.ccf_pv10[i] = self.ncf_pv10[i] + self.ccf_pv10[i-1]
-            if self.ccf_pv0[i] > 0 and self.ccf_pv0[i-1] < 0:
-                self.payout = (self.timeSeries['tMid'][i] - 30.4375/2) / 30.4375
-        if self.payout == -999:
-            self.payout = "N/A"
-        else:
-            self.payout = int(self.payout)
-    def life(self,LOSS):
-        self.LOSS = LOSS
-        non_ind = 0
-        if LOSS == "NO":
-            # Truncate when cash flow is negative, ignoring overhead
-            life_ind = 0
-            detect = self.timeSeries['netTotalRevenue'][0] - self.timeSeries['fixedCost'][0] - self.timeSeries['variableCost'][0] - self.timeSeries['severanceTax'][0] - self.timeSeries['adValoremTax'][0]
-            while detect > 0 and life_ind < self.months-1:
-                life_ind+=1
-                detect = self.timeSeries['netTotalRevenue'][life_ind] - self.timeSeries['fixedCost'][life_ind] - self.timeSeries['variableCost'][life_ind] - self.timeSeries['severanceTax'][life_ind] - self.timeSeries['adValoremTax'][life_ind]
-            for i in range(life_ind,self.months):
-                self.grossGas[i] = non_ind
-                self.averageMonthlyRate[i] = non_ind
-                self.timeSeries['grossOil'][i] = non_ind
-                self.timeSeries['grossNGL'][i] = non_ind
-                self.timeSeries['grossBOE'][i] = non_ind
-                self.gross_mcfe[i] = non_ind
-                self.timeSeries['netGas'][i] = non_ind
-                self.timeSeries['netOil'][i] = non_ind
-                self.timeSeries['netNGL'][i] = non_ind
-                self.timeSeries['netBOE'][i] = non_ind
-                self.timeSeries['netMCFE'][i] = non_ind
-                self.timeSeries['netGasRevenue'][i] = non_ind
-                self.timeSeries['netOilRevenue'][i] = non_ind
-                self.timeSeries['netNglRevenue'][i] = non_ind
-                self.timeSeries['netTotalRevenue'][i] = non_ind
-                self.timeSeries['fixedCost'][i] = non_ind
-                self.timeSeries['variableCost'][i] = non_ind
-                self.timeSeries['overhead'][i] = non_ind
-                self.timeSeries['severanceTax'][i] = non_ind
-                self.timeSeries['adValoremTax'][i] = non_ind
-                self.timeSeries['totalExpense'][i] = non_ind
-                self.ncf_pv0[i] = non_ind
-                self.ccf_pv0[i] = non_ind
-                self.ncf_pv10[i] = non_ind
-                self.ccf_pv10[i] = non_ind
-            self.EOL = self.timeSeries['tMid'][life_ind]
-        elif LOSS == "BFIT":
-            # Truncate when cash flow is negative, including all expenses
-            life_ind = 0
-            detect = self.timeSeries['netTotalRevenue'][0] - self.timeSeries['totalExpense'][0]
-            while detect > 0 and life_ind < self.months-1:
-                life_ind+=1
-                detect = self.timeSeries['netTotalRevenue'][life_ind] - self.timeSeries['totalExpense'][life_ind]
-            for i in range(life_ind,self.months):
-                self.grossGas[i] = non_ind
-                self.averageMonthlyRate[i] = non_ind
-                self.timeSeries['grossOil'][i] = non_ind
-                self.timeSeries['grossNGL'][i] = non_ind
-                self.timeSeries['grossBOE'][i] = non_ind
-                self.gross_mcfe[i] = non_ind
-                self.timeSeries['netGas'][i] = non_ind
-                self.timeSeries['netOil'][i] = non_ind
-                self.timeSeries['netNGL'][i] = non_ind
-                self.timeSeries['netBOE'][i] = non_ind
-                self.timeSeries['netMCFE'][i] = non_ind
-                self.timeSeries['netGasRevenue'][i] = non_ind
-                self.timeSeries['netOilRevenue'][i] = non_ind
-                self.timeSeries['netNglRevenue'][i] = non_ind
-                self.timeSeries['netTotalRevenue'][i] = non_ind
-                self.timeSeries['fixedCost'][i] = non_ind
-                self.timeSeries['variableCost'][i] = non_ind
-                self.timeSeries['overhead'][i] = non_ind
-                self.timeSeries['severanceTax'][i] = non_ind
-                self.timeSeries['adValoremTax'][i] = non_ind
-                self.timeSeries['totalExpense'][i] = non_ind
-                self.ncf_pv0[i] = non_ind
-                self.ccf_pv0[i] = non_ind
-                self.ncf_pv10[i] = non_ind
-                self.ccf_pv10[i] = non_ind
-            self.EOL = self.timeSeries['tMid'][life_ind]
-        elif LOSS == "OK":
-            # Allow loss - make no modifications to existing calculations
-            self.EOL = max(self.timeSeries['tMid'])
+    def cashFlow(self):
+        self.timeSeries['netPV0'] = self.timeSeries['netTotalRevenue'] - self.timeSeries['netCapex'] - self.timeSeries['totalExpense']
+        self.timeSeries['cumNetPV0'] = self.timeSeries.netPV0.cumsum()
+        self.timeSeries['netPV10'] = self.timeSeries['netPV0'] / 1.1 ** (self.timeSeries['tStart'] / self.daysInYear)
+        self.timeSeries['cumNetPV10'] = self.timeSeries.netPV10.cumsum()
+
+    def life(self):
+        if self.params[self.name]['lossFunction'] == "NO":
+            self.timeSeries.loc[self.timeSeries['netPV0'] + self.timeSeries['netCapex'] + self.timeSeries['overhead'] < 0] = np.nan
+        elif self.params[self.name]['lossFunction'] == "BFIT":
+            self.timeSeries.loc[self.timeSeries['netPV0'] + self.timeSeries['netCapex'] < 0] = np.nan
+        elif self.params[self.name]['lossFunction'] == "OK":
+            None
+
     def metrics(self):
         self.GROSS_CAPEX = int(round(np.sum(self.gross_capex) / 1000, 2))
         self.NET_CAPEX = int(round(np.sum(self.net_capex) / 1000, 2))
