@@ -37,7 +37,8 @@ class case:
         self.timeSeries = pd.DataFrame(
             columns = [
                 'tStart', 'tMid', 'tEnd', 'qStart', 'qEnd', 'Volume', 'grossGas', 'averageMonthlyGasRate',
-                'grossOil', 'grossNGL', 'grossBOE', 'grossMCFE', 'netGas', 'netOil', 'netNGL', 'netBOE', 'netMCFE',
+                'grossOil', 'averageMonthlyOilRate', 'grossNgl', 'averageMonthlyNglRate','grossBoe', 'averageMonthlyBoeRate',
+                'grossMCFE', 'netGas', 'netOil', 'netNgl', 'netBoe', 'netMcfe',
                 'gasPriceBase', 'gasPriceRealized', 'oilPriceBase', 'oilPriceRealized', 'nglPriceRealized',
                 'netGasRevenue', 'netOilRevenue', 'netNglRevenue', 'netTotalRevenue', 'fixedCost', 'variableCost',
                 'overhead', 'severanceTax', 'adValoremTax', 'totalExpense', 'grossCapex', 'netCapex', 'netCapexDiscounted',
@@ -146,14 +147,17 @@ class case:
         self.timeSeries['grossGas'] = self.timeSeries['Volume']
         self.timeSeries['averageMonthlyGasRate'] = self.timeSeries['Volume'] / self.daysInMonth
         self.timeSeries['grossOil'] = self.timeSeries['grossGas'] * self.params[self.name]['oilYield'] / 1000
-        self.timeSeries['grossNGL'] = self.timeSeries['grossGas'] * self.params[self.name]['nglYield'] / 1000
-        self.timeSeries['grossBOE'] = self.timeSeries['grossGas'] / 6 + self.timeSeries['grossOil'] + self.timeSeries['grossNGL']
-        self.timeSeries['grossMCFE'] = self.timeSeries['grossBOE'] * 6
+        self.timeSeries['averageMonthlyOilRate'] = self.timeSeries['grossOil'] / self.daysInMonth
+        self.timeSeries['grossNgl'] = self.timeSeries['grossGas'] * self.params[self.name]['nglYield'] / 1000
+        self.timeSeries['averageMonthlyNglRate'] = self.timeSeries['grossNgl'] / self.daysInMonth
+        self.timeSeries['grossBoe'] = self.timeSeries['grossGas'] / 6 + self.timeSeries['grossOil'] + self.timeSeries['grossNgl']
+        self.timeSeries['averageMonthlyBoeRate'] = self.timeSeries['grossBoe'] / self.daysInMonth
+        self.timeSeries['grossMCFE'] = self.timeSeries['grossBoe'] * 6
         self.timeSeries['netGas'] = self.timeSeries['grossGas'] * self.params[self.name]['shrink'] * self.params[self.name]['NRI']
         self.timeSeries['netOil'] = self.timeSeries['grossOil'] * self.params[self.name]['NRI']
-        self.timeSeries['netNGL'] = self.timeSeries['grossNGL'] * self.params[self.name]['NRI']
-        self.timeSeries['netBOE'] = self.timeSeries['netGas'] / 6 + self.timeSeries['netOil'] + self.timeSeries['netNGL']
-        self.timeSeries['netMCFE'] = self.timeSeries['netBOE'] * 6
+        self.timeSeries['netNgl'] = self.timeSeries['grossNgl'] * self.params[self.name]['NRI']
+        self.timeSeries['netBoe'] = self.timeSeries['netGas'] / 6 + self.timeSeries['netOil'] + self.timeSeries['netNgl']
+        self.timeSeries['netMcfe'] = self.timeSeries['netBoe'] * 6
         
     def pricing(self,type,gas_price,oil_price,gas_diff,oil_diff,ngl_diff):
         if type == "flat":
@@ -166,7 +170,7 @@ class case:
     def revenue(self):
         self.timeSeries['netGasRevenue'] = self.timeSeries['netGas'] * self.timeSeries['gasPriceRealized']
         self.timeSeries['netOilRevenue'] = self.timeSeries['netOil'] * self.timeSeries['oilPriceRealized']
-        self.timeSeries['netNglRevenue'] = self.timeSeries['netNGL'] * self.timeSeries['nglPriceRealized']
+        self.timeSeries['netNglRevenue'] = self.timeSeries['netNgl'] * self.timeSeries['nglPriceRealized']
         self.timeSeries['netTotalRevenue'] = self.timeSeries['netGasRevenue'] + self.timeSeries['netOilRevenue'] + self.timeSeries['netNglRevenue']
 
     def expenses(self):
@@ -196,14 +200,14 @@ class case:
         self.grossGas = self.timeSeries['grossGas']
         self.averageMonthlyRate = self.timeSeries['grossGas'] / 30.4375
         self.timeSeries['grossOil'] = p_s * (0.3 * p10.gross_oil + 0.4 * p50.gross_oil + 0.3 * p90.gross_oil) + (1-p_s) * pfail.gross_oil
-        self.timeSeries['grossNGL'] = p_s * (0.3 * p10.gross_ngl + 0.4 * p50.gross_ngl + 0.3 * p90.gross_ngl) + (1-p_s) * pfail.gross_ngl
-        self.timeSeries['grossBOE'] = self.timeSeries['grossGas'] / 6 + self.timeSeries['grossOil'] + self.timeSeries['grossNGL']
-        self.gross_mcfe = self.timeSeries['grossBOE'] * 6
+        self.timeSeries['grossNgl'] = p_s * (0.3 * p10.gross_ngl + 0.4 * p50.gross_ngl + 0.3 * p90.gross_ngl) + (1-p_s) * pfail.gross_ngl
+        self.timeSeries['grossBoe'] = self.timeSeries['grossGas'] / 6 + self.timeSeries['grossOil'] + self.timeSeries['grossNgl']
+        self.gross_mcfe = self.timeSeries['grossBoe'] * 6
         self.timeSeries['netGas'] = p_s * (0.3 * p10.net_gas + 0.4 * p50.net_gas + 0.3 * p90.net_gas) + (1-p_s) * pfail.net_gas
         self.timeSeries['netOil'] = p_s * (0.3 * p10.net_oil + 0.4 * p50.net_oil + 0.3 * p90.net_oil) + (1-p_s) * pfail.net_oil
-        self.timeSeries['netNGL'] = p_s * (0.3 * p10.net_ngl + 0.4 * p50.net_ngl + 0.3 * p90.net_ngl) + (1-p_s) * pfail.net_ngl
-        self.timeSeries['netBOE'] = self.timeSeries['netGas'] / 6 + self.timeSeries['netOil'] + self.timeSeries['netNGL']
-        self.timeSeries['netMCFE'] = self.timeSeries['netBOE'] * 6
+        self.timeSeries['netNgl'] = p_s * (0.3 * p10.net_ngl + 0.4 * p50.net_ngl + 0.3 * p90.net_ngl) + (1-p_s) * pfail.net_ngl
+        self.timeSeries['netBoe'] = self.timeSeries['netGas'] / 6 + self.timeSeries['netOil'] + self.timeSeries['netNgl']
+        self.timeSeries['netMcfe'] = self.timeSeries['netBoe'] * 6
         self.params[self.name]['shrink'] = np.sum(self.timeSeries['netGas']) / (np.sum(self.grossGas) * self.params['NRI'])
 
         # Pricing Section
@@ -216,7 +220,7 @@ class case:
         # Revenue Section
         self.timeSeries['netGasRevenue'] = self.timeSeries['netGas'] * self.timeSeries['gasPriceRealized']
         self.timeSeries['netOilRevenue'] = self.timeSeries['netOil'] * self.timeSeries['oilPriceRealized']
-        self.timeSeries['netNglRevenue'] = self.timeSeries['netNGL'] * self.timeSeries['nglPriceRealized']
+        self.timeSeries['netNglRevenue'] = self.timeSeries['netNgl'] * self.timeSeries['nglPriceRealized']
         self.timeSeries['netTotalRevenue'] = self.timeSeries['netGasRevenue'] + self.timeSeries['netOilRevenue'] + self.timeSeries['netNglRevenue']
 
         # Expenses Section
@@ -245,14 +249,14 @@ class case:
         self.grossGas = self.timeSeries['grossGas']
         self.averageMonthlyRate = self.timeSeries['grossGas'] / 30.4375
         self.timeSeries['grossOil'] = p_s * (0.3 * p10.gross_oil + 0.4 * p50.gross_oil + 0.3 * p90.gross_oil) + (1-p_s) * pfail.gross_oil - pbase.gross_oil
-        self.timeSeries['grossNGL'] = p_s * (0.3 * p10.gross_ngl + 0.4 * p50.gross_ngl + 0.3 * p90.gross_ngl) + (1-p_s) * pfail.gross_ngl - pbase.gross_ngl
-        self.timeSeries['grossBOE'] = self.timeSeries['grossGas'] / 6 + self.timeSeries['grossOil'] + self.timeSeries['grossNGL']
-        self.gross_mcfe = self.timeSeries['grossBOE'] * 6
+        self.timeSeries['grossNgl'] = p_s * (0.3 * p10.gross_ngl + 0.4 * p50.gross_ngl + 0.3 * p90.gross_ngl) + (1-p_s) * pfail.gross_ngl - pbase.gross_ngl
+        self.timeSeries['grossBoe'] = self.timeSeries['grossGas'] / 6 + self.timeSeries['grossOil'] + self.timeSeries['grossNgl']
+        self.gross_mcfe = self.timeSeries['grossBoe'] * 6
         self.timeSeries['netGas'] = p_s * (0.3 * p10.net_gas + 0.4 * p50.net_gas + 0.3 * p90.net_gas) + (1-p_s) * pfail.net_gas - pbase.net_gas
         self.timeSeries['netOil'] = p_s * (0.3 * p10.net_oil + 0.4 * p50.net_oil + 0.3 * p90.net_oil) + (1-p_s) * pfail.net_oil - pbase.net_oil
-        self.timeSeries['netNGL'] = p_s * (0.3 * p10.net_ngl + 0.4 * p50.net_ngl + 0.3 * p90.net_ngl) + (1-p_s) * pfail.net_ngl - pbase.net_ngl
-        self.timeSeries['netBOE'] = self.timeSeries['netGas'] / 6 + self.timeSeries['netOil'] + self.timeSeries['netNGL']
-        self.timeSeries['netMCFE'] = self.timeSeries['netBOE'] * 6
+        self.timeSeries['netNgl'] = p_s * (0.3 * p10.net_ngl + 0.4 * p50.net_ngl + 0.3 * p90.net_ngl) + (1-p_s) * pfail.net_ngl - pbase.net_ngl
+        self.timeSeries['netBoe'] = self.timeSeries['netGas'] / 6 + self.timeSeries['netOil'] + self.timeSeries['netNgl']
+        self.timeSeries['netMcfe'] = self.timeSeries['netBoe'] * 6
         self.params[self.name]['shrink'] = np.sum(self.timeSeries['netGas']) / (np.sum(self.grossGas) * self.params['NRI'])
 
         # Pricing Section
@@ -265,7 +269,7 @@ class case:
         # Revenue Section
         self.timeSeries['netGasRevenue'] = self.timeSeries['netGas'] * self.timeSeries['gasPriceRealized']
         self.timeSeries['netOilRevenue'] = self.timeSeries['netOil'] * self.timeSeries['oilPriceRealized']
-        self.timeSeries['netNglRevenue'] = self.timeSeries['netNGL'] * self.timeSeries['nglPriceRealized']
+        self.timeSeries['netNglRevenue'] = self.timeSeries['netNgl'] * self.timeSeries['nglPriceRealized']
         self.timeSeries['netTotalRevenue'] = self.timeSeries['netGasRevenue'] + self.timeSeries['netOilRevenue'] + self.timeSeries['netNglRevenue']
 
         # Expenses Section
@@ -294,19 +298,19 @@ class case:
         self.grossGas = self.timeSeries['grossGas']
         # self.averageMonthlyRate = self.timeSeries['grossGas'] / 30.4375
         self.timeSeries['grossOil'] = self.timeSeries['grossOil'] - pbase.gross_oil
-        self.timeSeries['grossNGL'] = self.timeSeries['grossNGL'] - pbase.gross_ngl
-        self.timeSeries['grossBOE'] = self.timeSeries['grossGas'] / 6 + self.timeSeries['grossOil'] + self.timeSeries['grossNGL']
-        self.gross_mcfe = self.timeSeries['grossBOE'] * 6
+        self.timeSeries['grossNgl'] = self.timeSeries['grossNgl'] - pbase.gross_ngl
+        self.timeSeries['grossBoe'] = self.timeSeries['grossGas'] / 6 + self.timeSeries['grossOil'] + self.timeSeries['grossNgl']
+        self.gross_mcfe = self.timeSeries['grossBoe'] * 6
         self.timeSeries['netGas'] = self.timeSeries['netGas'] - pbase.net_gas
         self.timeSeries['netOil'] = self.timeSeries['netOil'] - pbase.net_oil
-        self.timeSeries['netNGL'] = self.timeSeries['netNGL'] - pbase.net_ngl
-        self.timeSeries['netBOE'] = self.timeSeries['netGas'] / 6 + self.timeSeries['netOil'] + self.timeSeries['netNGL']
-        self.timeSeries['netMCFE'] = self.timeSeries['netBOE'] * 6
+        self.timeSeries['netNgl'] = self.timeSeries['netNgl'] - pbase.net_ngl
+        self.timeSeries['netBoe'] = self.timeSeries['netGas'] / 6 + self.timeSeries['netOil'] + self.timeSeries['netNgl']
+        self.timeSeries['netMcfe'] = self.timeSeries['netBoe'] * 6
 
         # Revenue Section
         self.timeSeries['netGasRevenue'] = self.timeSeries['netGas'] * self.timeSeries['gasPriceRealized']
         self.timeSeries['netOilRevenue'] = self.timeSeries['netOil'] * self.timeSeries['oilPriceRealized']
-        self.timeSeries['netNglRevenue'] = self.timeSeries['netNGL'] * self.timeSeries['nglPriceRealized']
+        self.timeSeries['netNglRevenue'] = self.timeSeries['netNgl'] * self.timeSeries['nglPriceRealized']
         self.timeSeries['netTotalRevenue'] = self.timeSeries['netGasRevenue'] + self.timeSeries['netOilRevenue'] + self.timeSeries['netNglRevenue']
 
         # Expenses Section
@@ -341,29 +345,58 @@ class case:
             None
 
     def metrics(self):
-        self.GROSS_CAPEX = int(round(np.sum(self.gross_capex) / 1000, 2))
-        self.NET_CAPEX = int(round(np.sum(self.net_capex) / 1000, 2))
-        self.NET_CAPEX_DISC = np.sum(self.net_capex_disc)
-        self.PV0 = int(round(np.sum(self.ncf_pv0) / 1000, 2))
-        self.PV10 = int(round(np.sum(self.ncf_pv10) / 1000, 2))
-        self.netGasSales = np.sum(self.timeSeries['netGas'])
-        self.NET_MBOE = int(round(np.sum(self.timeSeries['netBOE']) / 1000, 2))
-        self.NET_MMCFE = int(round(np.sum(self.timeSeries['netMCFE']) / 1000, 2))
-        self.netBOED = int(round(self.timeSeries['netBOE'][0] / 30.4375, 2))
-        self.netMCFED = int(round(self.timeSeries['netMCFE'][0] / 30.4375, 2))
-        self.grossGas = round(np.sum(self.grossGas) / 1000000, 2)
-        self.grossGas_BOE = round(np.sum(self.grossGas) / 6, 2)
-        self.timeSeries['grossNGL'] = round(np.sum(self.timeSeries['grossNGL']))
-        self.timeSeries['grossOil'] = round(np.sum(self.timeSeries['grossOil']))
-        self.netGasRevenue = round(np.sum(self.timeSeries['netGasRevenue']))
-        self.netOilRevenue = round(np.sum(self.timeSeries['netOilRevenue']))
-        self.netNGLRevenue = round(np.sum(self.timeSeries['netNglRevenue']))
-        if self.NET_CAPEX == 0 or self.grossGas == 0:
-            self.PVR0 = 0
-            self.PVR10 = 0
-        else:
-            self.PVR0 = self.PV0 / self.NET_CAPEX + 1
-            self.PVR10 = np.sum(self.ncf_pv10) / self.NET_CAPEX_DISC + 1
+       
+        sumMetricsList = [
+            'grossGas',
+            'grossOil',
+            'grossNGL',
+            'grossBOE',
+            'grossMCFE',
+            'netGas',
+            'netOil',
+            'netNGL',
+            'netBOE',
+            'netMCFE',
+            'netGasRevenue',
+            'netOilRevenue',
+            'netNglRevenue',
+            'netTotalRevenue',
+            'fixedCost',
+            'variableCost',
+            'overhead',
+            'severanceTax',
+            'adValoremTax',
+            'totalExpense',
+            'grossCapex',
+            'netCapex',
+            'netCapexDiscounted',
+            'netPV0',
+            'netPV10'
+        ]
+        sumTable = pd.DataFrame(self.timeSeries.loc[:, self.timeSeries.columns.isin(sumMetricsList)].sum(),
+        columns = [self.name])
+        sumTable.index = sumTable.index + 'Sum'
+        maxMetricsList = [
+            'qStart',
+            'grossgGas',
+            'averageMonthlyGasRate',
+            'grossOil',
+            'averageMonthlyOilRate',
+            'grossNgl',
+            'averageMonthlyNglRate',
+            'grossBoe',
+            'averageMonthlyBoeRate',
+            'netGas',
+            'netOil',
+            'netNgl',
+            'netBoe',
+            'netMcfe'
+        ]
+        maxTable = pd.DataFrame(self.timeSeries.loc[:, self.timeSeries.columns.isin(maxMetricsList)].max(),
+        columns = [self.name])
+        maxTable.index = maxTable.index + 'Max'
+        self.metricsTable = sumTable.append(maxTable)
+
     def getMetricsDict(self):
         self.metricsDict = {
             'Incremental EUR (Bcf)': str(round(self.grossGas, 2)),
@@ -371,8 +404,8 @@ class case:
             'Net CAPEX ($M)': str(round(self.NET_CAPEX)),
             'Net Res. (Mboe)': str(round(self.NET_MBOE)),
             'Net Res. (MMcfe)': str(round(self.NET_MMCFE)),
-            'Net IP30 (Boe/d)': str(round(self.netBOED)),
-            'Net IP30 (Mcfe/d)': str(round(self.netMCFED)),
+            'Net IP30 (Boe/d)': str(round(self.netBoeD)),
+            'Net IP30 (Mcfe/d)': str(round(self.netMcfeD)),
             'PV-10 ($M)': str(round(self.PV10)),
             'Payout (Months)': str(self.payout),
             'PVR-10': str(round(self.PVR10, 1))
@@ -380,7 +413,7 @@ class case:
         return self.metricsDict
     def make_run_table(self):
         self.col_titles = "Time (Days),Gross Gas (Mcf),Gross Oil (Bbl),Gross NGL (Bbl),Net Gas (Mcf),Net Oil (Mcf),Net NGL (Mcf),Base Gas Price ($/Mcf),Base Oil Price ($/Bbl),Realized Gas Price ($/Mcf),Realized Oil Price ($/Mcf,Realized NGL Price ($/Bbl),Gas Revenue ($),Oil Revenue ($),NGL Revenue ($),Total Net Revenue ($),Severance Tax ($),Ad Valorem Tax ($),Total Expenses ($),Net CAPEX ($),Net PV0 ($),Cum PV0 ($),Net PV10 ($),Cum PV10 ($)"
-        table = np.column_stack((self.timeSeries['tMid'],self.grossGas,self.timeSeries['grossOil'],self.timeSeries['grossNGL'],self.timeSeries['netGas'],self.timeSeries['netOil'],self.timeSeries['netNGL'],
+        table = np.column_stack((self.timeSeries['tMid'],self.grossGas,self.timeSeries['grossOil'],self.timeSeries['grossNgl'],self.timeSeries['netGas'],self.timeSeries['netOil'],self.timeSeries['netNgl'],
         self.timeSeries['gasPriceBase'],self.timeSeries['oilPriceBase'],self.timeSeries['gasPriceRealized'],self.timeSeries['oilPriceRealized'],self.timeSeries['nglPriceRealized'],self.timeSeries['netGasRevenue'],
         self.timeSeries['netOilRevenue'],self.timeSeries['netNglRevenue'],self.timeSeries['netTotalRevenue'],self.timeSeries['severanceTax'],self.timeSeries['adValoremTax'],self.timeSeries['totalExpense'],self.net_capex,self.ncf_pv0,
         self.ccf_pv0,self.ncf_pv10,self.ccf_pv10))
