@@ -3,7 +3,7 @@ import pandas as pd
 import Toolbox as tb
 
 class case:
-    def __init__(self, params):
+    def __init__(self, params, initRun = False):
         # Builds case time series table as a Pandas Dataframe, stored as an object property
         # Saves case parameters (non-time-series data) in a Pandas Dataframe, stored as an object property
         # Saves all timesteps from time series as dt property for use in decline calculations
@@ -12,6 +12,7 @@ class case:
         # months:           # of months in run                          (months)
         # WI:               Working Interest                            (fraction)
         # NRI:              Net Revenue Interest                        (fraction)
+        # initRun:          Enables run on initialization if True       (Boolean)
         #
         # *** Generated Object Properties ***
         # dt:               each instantaneous timestep in the run      (days)
@@ -25,9 +26,9 @@ class case:
         #   months:         # of months in run                          (months)
         #   WI:             Working Interest                            (fraction)
         #   NRI:            Net Revenue Interest                        (fraction)
-
-        self.name = params[0]['casename']
-        self.params = params
+        
+        self.params = params.copy()
+        self.name = self.params[0]['casename']
         self.params.columns = [self.name]
         self.months = self.params[self.name]['months']
         
@@ -54,8 +55,12 @@ class case:
         self.timeSeries['tEnd'] = self.dt[1:]
         self.timeSeries['tMid'] = self.timeSeries['tEnd'] - self.daysInMonth / 2
 
-    def decline(self):
+        if initRun:
+            self.fullRun()
+        else:
+            None
 
+    def decline(self):
         Decline_type = self.params[self.name]['Decline_type']
         qi = self.params[self.name]['qi']
         Di_sec = self.params[self.name]['Di_sec']
@@ -143,7 +148,6 @@ class case:
             self.timeSeries['Volume'] = (self.timeSeries['qStart'] - self.timeSeries['qEnd']) / De * self.daysInYear
 
     def production(self):
-        
         self.timeSeries['grossGas'] = self.timeSeries['Volume']
         self.timeSeries['averageMonthlyGasRate'] = self.timeSeries['Volume'] / self.daysInMonth
         self.timeSeries['grossOil'] = self.timeSeries['grossGas'] * self.params[self.name]['oilYield'] / 1000
@@ -159,7 +163,7 @@ class case:
         self.timeSeries['netBoe'] = self.timeSeries['netGas'] / 6 + self.timeSeries['netOil'] + self.timeSeries['netNgl']
         self.timeSeries['netMcfe'] = self.timeSeries['netBoe'] * 6
         
-    def pricing(self,type,gas_price,oil_price,gas_diff,oil_diff,ngl_diff):
+    def pricing(self, type = 'flat', gas_price = 2.5, oil_price = 45, gas_diff = -0.1, oil_diff = -10.7, ngl_diff = 0.39):
         if type == "flat":
             self.timeSeries['gasPriceBase'] = np.ones(self.months) * gas_price
             self.timeSeries['gasPriceRealized'] = self.timeSeries['gasPriceBase'] + gas_diff
@@ -190,6 +194,83 @@ class case:
         self.timeSeries.loc[0, 'grossCapex'] = self.params[self.name]['firstMonthCapex']
         self.timeSeries.loc[0, 'netCapex'] = self.params[self.name]['firstMonthCapex'] * self.params[self.name]['NRI']
         self.timeSeries.loc[0, 'netCapexDiscounted'] = self.params[self.name]['firstMonthCapex'] * self.params[self.name]['NRI']
+
+    def cashFlow(self):
+        self.timeSeries['netPV0'] = self.timeSeries['netTotalRevenue'] - self.timeSeries['netCapex'] - self.timeSeries['totalExpense']
+        self.timeSeries['cumNetPV0'] = self.timeSeries.netPV0.cumsum()
+        self.timeSeries['netPV10'] = self.timeSeries['netPV0'] / 1.1 ** (self.timeSeries['tStart'] / self.daysInYear)
+        self.timeSeries['cumNetPV10'] = self.timeSeries.netPV10.cumsum()
+
+    def life(self):
+        if self.params[self.name]['lossFunction'] == "NO":
+            self.timeSeries.loc[self.timeSeries['netPV0'] + self.timeSeries['netCapex'] + self.timeSeries['overhead'] < 0] = np.nan
+        elif self.params[self.name]['lossFunction'] == "BFIT":
+            self.timeSeries.loc[self.timeSeries['netPV0'] + self.timeSeries['netCapex'] < 0] = np.nan
+        elif self.params[self.name]['lossFunction'] == "OK":
+            None
+
+    def metrics(self):
+        sumMetricsList = [
+            'grossGas',
+            'grossOil',
+            'grossNGL',
+            'grossBOE',
+            'grossMCFE',
+            'netGas',
+            'netOil',
+            'netNGL',
+            'netBOE',
+            'netMCFE',
+            'netGasRevenue',
+            'netOilRevenue',
+            'netNglRevenue',
+            'netTotalRevenue',
+            'fixedCost',
+            'variableCost',
+            'overhead',
+            'severanceTax',
+            'adValoremTax',
+            'totalExpense',
+            'grossCapex',
+            'netCapex',
+            'netCapexDiscounted',
+            'netPV0',
+            'netPV10'
+        ]
+        sumTable = pd.DataFrame(self.timeSeries.loc[:, self.timeSeries.columns.isin(sumMetricsList)].sum(),
+        columns = [self.name])
+        sumTable.index = sumTable.index + 'Sum'
+        maxMetricsList = [
+            'qStart',
+            'grossgGas',
+            'averageMonthlyGasRate',
+            'grossOil',
+            'averageMonthlyOilRate',
+            'grossNgl',
+            'averageMonthlyNglRate',
+            'grossBoe',
+            'averageMonthlyBoeRate',
+            'netGas',
+            'netOil',
+            'netNgl',
+            'netBoe',
+            'netMcfe'
+        ]
+        maxTable = pd.DataFrame(self.timeSeries.loc[:, self.timeSeries.columns.isin(maxMetricsList)].max(),
+        columns = [self.name])
+        maxTable.index = maxTable.index + 'Max'
+        self.metricsTable = sumTable.append(maxTable)
+
+    def fullRun(self):
+        self.decline()
+        self.production()
+        self.pricing()
+        self.revenue()
+        self.expenses()
+        self.capex()
+        self.cashFlow()
+        self.life()
+        self.metrics()
 
     def swansons_mean(self, p10, p50, p90, pfail, p_s):
         # Calculate production for a "mean" case (non-incremental)
@@ -330,92 +411,43 @@ class case:
         self.cash_flow()
         self.life(self.LOSS)
         self.metrics()
-    def cashFlow(self):
-        self.timeSeries['netPV0'] = self.timeSeries['netTotalRevenue'] - self.timeSeries['netCapex'] - self.timeSeries['totalExpense']
-        self.timeSeries['cumNetPV0'] = self.timeSeries.netPV0.cumsum()
-        self.timeSeries['netPV10'] = self.timeSeries['netPV0'] / 1.1 ** (self.timeSeries['tStart'] / self.daysInYear)
-        self.timeSeries['cumNetPV10'] = self.timeSeries.netPV10.cumsum()
 
-    def life(self):
-        if self.params[self.name]['lossFunction'] == "NO":
-            self.timeSeries.loc[self.timeSeries['netPV0'] + self.timeSeries['netCapex'] + self.timeSeries['overhead'] < 0] = np.nan
-        elif self.params[self.name]['lossFunction'] == "BFIT":
-            self.timeSeries.loc[self.timeSeries['netPV0'] + self.timeSeries['netCapex'] < 0] = np.nan
-        elif self.params[self.name]['lossFunction'] == "OK":
+class aggregateCase:
+    
+    def __init__(self, weights = 'swanson', cases = None):
+    # Aggregate cases have no parameters table like a regular case - their time series data and
+    # associated metrics are all calculated as a weighted average of any number of input cases with
+    # associated weights
+        if weights == 'swanson':
+            self.weights = [0.3, 0.4, 0.3]
+        else:
+            self.weights = weights
+
+        self.cases = cases
+
+        self.timeSeries = pd.DataFrame(
+            columns = [
+                'tStart', 'tMid', 'tEnd', 'qStart', 'qEnd', 'Volume', 'grossGas', 'averageMonthlyGasRate',
+                'grossOil', 'averageMonthlyOilRate', 'grossNgl', 'averageMonthlyNglRate','grossBoe', 'averageMonthlyBoeRate',
+                'grossMCFE', 'netGas', 'netOil', 'netNgl', 'netBoe', 'netMcfe',
+                'gasPriceBase', 'gasPriceRealized', 'oilPriceBase', 'oilPriceRealized', 'nglPriceRealized',
+                'netGasRevenue', 'netOilRevenue', 'netNglRevenue', 'netTotalRevenue', 'fixedCost', 'variableCost',
+                'overhead', 'severanceTax', 'adValoremTax', 'totalExpense', 'grossCapex', 'netCapex', 'netCapexDiscounted',
+                'netPV0', 'netPV10', 'cumNetPV0', 'cumNetPV10'
+            ],
+            index = [
+                np.arange(self.months)
+            ]
+        )
+    
+    def pricing(self, type = 'flat', gas_price = 2.5, oil_price = 45, gas_diff = -0.1, oil_diff = -10.7, ngl_diff = 0.39):
+        if type == 'flat':
+            self.timeSeries['gasPriceBase'] = np.ones(self.months) * gas_price
+            self.timeSeries['gasPriceRealized'] = self.timeSeries['gasPriceBase'] + gas_diff
+            self.timeSeries['oilPriceBase'] = np.ones(self.months) * oil_price
+            self.timeSeries['oilPriceRealized'] = self.timeSeries['oilPriceBase'] + oil_diff
+            self.timeSeries['nglPriceRealized'] = self.timeSeries['oilPriceBase'] * ngl_diff
+    
+    def runAggregate(self):
+        for (i, j) in zip(self.cases, self.weights):
             None
-
-    def metrics(self):
-       
-        sumMetricsList = [
-            'grossGas',
-            'grossOil',
-            'grossNGL',
-            'grossBOE',
-            'grossMCFE',
-            'netGas',
-            'netOil',
-            'netNGL',
-            'netBOE',
-            'netMCFE',
-            'netGasRevenue',
-            'netOilRevenue',
-            'netNglRevenue',
-            'netTotalRevenue',
-            'fixedCost',
-            'variableCost',
-            'overhead',
-            'severanceTax',
-            'adValoremTax',
-            'totalExpense',
-            'grossCapex',
-            'netCapex',
-            'netCapexDiscounted',
-            'netPV0',
-            'netPV10'
-        ]
-        sumTable = pd.DataFrame(self.timeSeries.loc[:, self.timeSeries.columns.isin(sumMetricsList)].sum(),
-        columns = [self.name])
-        sumTable.index = sumTable.index + 'Sum'
-        maxMetricsList = [
-            'qStart',
-            'grossgGas',
-            'averageMonthlyGasRate',
-            'grossOil',
-            'averageMonthlyOilRate',
-            'grossNgl',
-            'averageMonthlyNglRate',
-            'grossBoe',
-            'averageMonthlyBoeRate',
-            'netGas',
-            'netOil',
-            'netNgl',
-            'netBoe',
-            'netMcfe'
-        ]
-        maxTable = pd.DataFrame(self.timeSeries.loc[:, self.timeSeries.columns.isin(maxMetricsList)].max(),
-        columns = [self.name])
-        maxTable.index = maxTable.index + 'Max'
-        self.metricsTable = sumTable.append(maxTable)
-
-    def getMetricsDict(self):
-        self.metricsDict = {
-            'Incremental EUR (Bcf)': str(round(self.grossGas, 2)),
-            'Gross CAPEX ($M)': str(round(self.GROSS_CAPEX, 2)),
-            'Net CAPEX ($M)': str(round(self.NET_CAPEX)),
-            'Net Res. (Mboe)': str(round(self.NET_MBOE)),
-            'Net Res. (MMcfe)': str(round(self.NET_MMCFE)),
-            'Net IP30 (Boe/d)': str(round(self.netBoeD)),
-            'Net IP30 (Mcfe/d)': str(round(self.netMcfeD)),
-            'PV-10 ($M)': str(round(self.PV10)),
-            'Payout (Months)': str(self.payout),
-            'PVR-10': str(round(self.PVR10, 1))
-        }
-        return self.metricsDict
-    def make_run_table(self):
-        self.col_titles = "Time (Days),Gross Gas (Mcf),Gross Oil (Bbl),Gross NGL (Bbl),Net Gas (Mcf),Net Oil (Mcf),Net NGL (Mcf),Base Gas Price ($/Mcf),Base Oil Price ($/Bbl),Realized Gas Price ($/Mcf),Realized Oil Price ($/Mcf,Realized NGL Price ($/Bbl),Gas Revenue ($),Oil Revenue ($),NGL Revenue ($),Total Net Revenue ($),Severance Tax ($),Ad Valorem Tax ($),Total Expenses ($),Net CAPEX ($),Net PV0 ($),Cum PV0 ($),Net PV10 ($),Cum PV10 ($)"
-        table = np.column_stack((self.timeSeries['tMid'],self.grossGas,self.timeSeries['grossOil'],self.timeSeries['grossNgl'],self.timeSeries['netGas'],self.timeSeries['netOil'],self.timeSeries['netNgl'],
-        self.timeSeries['gasPriceBase'],self.timeSeries['oilPriceBase'],self.timeSeries['gasPriceRealized'],self.timeSeries['oilPriceRealized'],self.timeSeries['nglPriceRealized'],self.timeSeries['netGasRevenue'],
-        self.timeSeries['netOilRevenue'],self.timeSeries['netNglRevenue'],self.timeSeries['netTotalRevenue'],self.timeSeries['severanceTax'],self.timeSeries['adValoremTax'],self.timeSeries['totalExpense'],self.net_capex,self.ncf_pv0,
-        self.ccf_pv0,self.ncf_pv10,self.ccf_pv10))
-
-        return table
